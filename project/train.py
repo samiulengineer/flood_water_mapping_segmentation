@@ -88,7 +88,6 @@ else:
 
 loggers = SelectCallbacks(val_dataset, model, config)
 
-model.summary()
 
 # fit
 # ----------------------------------------------------------------------------------------------

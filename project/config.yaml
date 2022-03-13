@@ -9,20 +9,20 @@ num_classes : 2
 # Training
 # ----------------------------------------------------------------------------------------------
 # unet/mod-unet/dncnn/u2net/vnet/unet++
-model_name : unet
+model_name : mnet
 batch_size : 3
-epochs : 30
+epochs : 5000
 learning_rate : !!float 3e-4
-val_plot_epoch : 2
+val_plot_epoch : 20
 augment : True
 transfer_lr : False
-gpu : !!str 0
+gpu : !!str 3
 
 # Dataset
 # ----------------------------------------------------------------------------------------------
 patch_size : 256 # height = width, anyone is suitable
-dataset_dir : D:/CSML_workPlace/flood_water_ditection_satellite/data/
-root_dir : D:/CSML_workPlace/flood_water_ditection_satellite
+dataset_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation/data/
+root_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation
 train_size : 0.8
 train_dir : train.csv
 valid_dir : valid.csv
@@ -47,4 +47,4 @@ load_model_dir : None
 
 
 single_image : True # if True, then only index x_test image will plot
-index : 29 # by default -1 means random image else specific index image provide by user
+index : -1 # by default -1 means random image else specific index image provide by user

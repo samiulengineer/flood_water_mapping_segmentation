@@ -727,7 +727,7 @@ def unet_plus_plus(config):
     x04 = LeakyReLU(0.01)(x04)
     x04 = Dropout(0.2)(x04)
 
-    output = Conv2D(config['num_classes'], kernel_size = (1, 1), activation = 'softmax')(x04)
+    output = Conv2D(config['num_classes'], kernel_size = (1, 1), activation = 'softmax', dtype=tf.float32)(x04)
  
     model = Model(inputs=[input], outputs=[output])
     

@@ -10,7 +10,6 @@ import pandas as pd
 from PIL import Image
 import tensorflow as tf
 import albumentations as A
-from patchify import patchify
 from matplotlib import pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
@@ -331,12 +330,12 @@ def get_train_val_dataloader(config):
     train_dataset = MyDataset(train_dir.feature_ids.values, train_dir.masks.values,
                                 in_channels=config['in_channels'],
                                 batch_size=n_batch_size, transform_fn=transform_data, 
-                                num_class=config['num_classes'], augment=augment_obj)
+                                num_class=config['num_classes'], augment=augment_obj, weights=weights)
 
     val_dataset = MyDataset(valid_dir.feature_ids.values, valid_dir.masks.values, 
                             in_channels=config['in_channels'],
                             batch_size=config['batch_size'], transform_fn=transform_data, 
-                            num_class=config['num_classes'])
+                            num_class=config['num_classes'], weights=weights)
     
     return train_dataset, val_dataset
 
