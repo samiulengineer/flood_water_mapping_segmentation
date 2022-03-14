@@ -1,7 +1,7 @@
 # Image Input/Output
 # ----------------------------------------------------------------------------------------------
-height : 512
-width : 512
+height : 256
+width : 256
 in_channels : 3
 num_classes : 2
 
@@ -18,9 +18,18 @@ augment : True
 transfer_lr : False
 gpu : !!str 3
 
+
+# Patchify
+# ----------------------------------------------------------------------------------------------
+patchify : True
+patch_size : 256 # height = width, anyone is suitable
+stride : 64
+p_train_dir : train_patch.csv
+p_valid_dir : valid_patch.csv
+p_test_dir : test_patch.csv
+
 # Dataset
 # ----------------------------------------------------------------------------------------------
-patch_size : 256 # height = width, anyone is suitable
 dataset_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation/data/
 root_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation
 train_size : 0.8

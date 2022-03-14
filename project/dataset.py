@@ -117,6 +117,49 @@ def data_path_split(config):
     save_csv(test, config, "test.csv")
 
 
+def class_percentage_check(label):
+    total_pix = label.shape[0]*label.shape[0]
+    class_one = np.sum(label)
+    class_zero_p = total_pix-class_one
+    return {"zero_class":((class_zero_p/total_pix)*100),
+            "one_class":((class_one/total_pix)*100)
+    }
+
+
+
+def save_patch_idx(path, patch_size=256, stride=8):
+    with rasterio.open(path) as dem:
+        img = dem.read(1)
+    patch_height = int((img.shape[0]-patch_size)/stride)+1 # [{(height-patch_size)/stride}+1]
+    patch_weight = int((img.shape[1]-patch_size)/stride)+1 # [{(weight-patch_size)/stride}+1]
+    patch_idx = []
+    for i in range(patch_height):
+        s_row = i*stride
+        e_row = s_row+patch_size
+        if e_row <= img.shape[0]:
+            for j in range(patch_weight):
+                start = (j*stride)
+                end = start+patch_size
+                if end <= img.shape[1]:
+                    tmp = img[s_row:e_row, start:end]
+                    percen = class_percentage_check(tmp)
+                    if percen["one_class"]>19.0:
+                        patch_idx.append([s_row, e_row, start, end])
+    return  patch_idx
+
+
+def patch_images(data, config, name):
+    img_dirs = []
+    masks_dirs = []
+    all_patch = []
+    for i in range(len(data)):
+        patches = save_patch_idx(data.masks.values[i], patch_size=config['patch_size'], stride=config['stride'])
+        for patch in patches:
+            img_dirs.append(data.feature_ids.values[i])
+            masks_dirs.append(data.masks.values[i])
+            all_patch.append(patch)
+    temp = {'feature_ids': img_dirs, 'masks': masks_dirs, 'patch_idx':all_patch}
+    save_csv(temp, config, (name+".csv"))
 
 # Data Augment class
 # ----------------------------------------------------------------------------------------------
@@ -176,7 +219,7 @@ class Augment:
 
 class MyDataset(Sequence):
 
-    def __init__(self, img_dir, tgt_dir, in_channels, batch_size, num_class, transform_fn=None, augment=None, weights=None,):
+    def __init__(self, img_dir, tgt_dir, patch_idx, in_channels, batch_size, num_class, transform_fn=None, augment=None, weights=None,):
         """
         Summary:
             initialize class variables
@@ -195,6 +238,7 @@ class MyDataset(Sequence):
 
         self.img_dir = img_dir
         self.tgt_dir = tgt_dir
+        self.patch_idx = patch_idx
         self.in_channels = in_channels
         self.transform_fn = transform_fn
         self.batch_size = batch_size
@@ -307,11 +351,27 @@ def get_train_val_dataloader(config):
 
     if not (os.path.exists(config['train_dir'])):
         data_path_split(config)
+    if not (os.path.exists(config["p_train_dir"])):
+        data = pd.read_csv(config['train_dir'])
+        patch_images(data, config, "train_patch")
+        
+        data = pd.read_csv(config['valid_dir'])
+        patch_images(data, config, "valid_patch")
+        
+        data = pd.read_csv(config['test_dir'])
+        patch_images(data, config, "test_patch")
+    if config['patchify']:
+        print("Loading Patchified features and masks directories.....")
+        train_dir = pd.read_csv(config['p_train_dir'])
+        valid_dir = pd.read_csv(config['p_valid_dir'])
+        train_idx = train_dir.patch_idx.values
+        valid_idx = valid_dir.patch_idx.values
     else:
         print("Loading features and masks directories.....")
-    
-    train_dir = pd.read_csv(config['train_dir'])
-    valid_dir = pd.read_csv(config['valid_dir'])
+        train_dir = pd.read_csv(config['train_dir'])
+        valid_dir = pd.read_csv(config['valid_dir'])
+        train_idx = None
+        valid_idx = None
 
     print("train Example : {}".format(len(train_dir)))
     print("valid Example : {}".format(len(valid_dir)))
@@ -327,12 +387,12 @@ def get_train_val_dataloader(config):
 
     # create dataloader object
     weights=tf.constant([1.0, 8.0])
-    train_dataset = MyDataset(train_dir.feature_ids.values, train_dir.masks.values,
+    train_dataset = MyDataset(train_dir.feature_ids.values, train_dir.masks.values, train_idx,
                                 in_channels=config['in_channels'],
                                 batch_size=n_batch_size, transform_fn=transform_data, 
                                 num_class=config['num_classes'], augment=augment_obj, weights=weights)
 
-    val_dataset = MyDataset(valid_dir.feature_ids.values, valid_dir.masks.values, 
+    val_dataset = MyDataset(valid_dir.feature_ids.values, valid_dir.masks.values, valid_idx,
                             in_channels=config['in_channels'],
                             batch_size=config['batch_size'], transform_fn=transform_data, 
                             num_class=config['num_classes'], weights=weights)
@@ -362,7 +422,7 @@ def get_test_dataloader(config):
     print("test Example : {}".format(len(test_dir)))
 
     # create dataloader object
-    test_dataset = MyDataset(test_dir.feature_ids.values, test_dir.masks.values, 
+    test_dataset = MyDataset(test_dir.feature_ids.values, test_dir.masks.values, test_dir.patch_idx.values,
                             in_channels=config['in_channels'],
                             batch_size=config['batch_size'], transform_fn=transform_data, 
                             num_class=config['num_classes'], weights=tf.constant([1.0, 8.0]))
