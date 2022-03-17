@@ -19,7 +19,7 @@ tf.config.optimizer.set_jit("True")
 
 # Parsing variable
 # ----------------------------------------------------------------------------------------------
-
+'''
 parser = argparse.ArgumentParser()
 parser.add_argument("--gpu")
 parser.add_argument("--root_dir")
@@ -30,7 +30,7 @@ parser.add_argument("--batch_size")
 parser.add_argument("--index")
 
 args = parser.parse_args()
-
+'''
 
 # Set up train configaration
 # ----------------------------------------------------------------------------------------------

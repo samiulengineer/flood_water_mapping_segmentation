@@ -2,6 +2,7 @@ import os
 import math
 import yaml
 import itertools
+import gc
 import numpy as np
 import pathlib
 import tensorflow as tf
@@ -56,6 +57,7 @@ class SelectCallbacks(keras.callbacks.Callback):
             save predict mask
         """
         if (epoch % self.config['val_plot_epoch'] == 0): # every after certain epochs the model will predict mask
+            gc.collect()
             show_predictions(self.val_dataset, self.model, self.config, True)
 
     def get_callbacks(self, val_dataset, model):
@@ -81,7 +83,7 @@ class SelectCallbacks(keras.callbacks.Callback):
             self.callbacks.append(keras.callbacks.LearningRateScheduler(schedule = self.lr_scheduler))
         
         if self.config['early_stop']:
-            self.callbacks.append(keras.callbacks.EarlyStopping(monitor = 'acc', patience = self.config['patience']))
+            self.callbacks.append(keras.callbacks.EarlyStopping(monitor = 'my_mean_iou', patience = self.config['patience']))
         
         if self.config['val_pred_plot']:
             self.callbacks.append(SelectCallbacks(val_dataset, model, self.config))
@@ -106,7 +108,7 @@ def create_mask(mask, pred_mask):
 
 # Sub-ploting and save
 # ----------------------------------------------------------------------------------------------
-def display(display_list, idx, directory, score):
+def display(display_list, idx, directory, score, exp):
     """
     Summary:
         save all images into single figure
@@ -127,7 +129,7 @@ def display(display_list, idx, directory, score):
         plt.imshow((display_list[title[i]]))
         plt.axis('off')
 
-    prediction_name = "img_{}_acc_{:.4f}.png".format(idx, score) # create file name to save
+    prediction_name = "img_ex_{}_{}_acc_{:.4f}.png".format(exp, idx, score) # create file name to save
     return plt.savefig(os.path.join(directory, prediction_name), bbox_inches='tight')
 
 
@@ -168,7 +170,7 @@ def show_predictions(dataset, model, config, val=False):
             display({"Feature": feature[i],
                       "Mask": mask[i],
                       "Prediction (MeanIOU_{:.4f})".format(score): pred_mask[i]
-                      }, idx, directory, score)
+                      }, idx, directory, score, config['experiment'])
             idx += 1
 
 # GPU setting
@@ -238,20 +240,27 @@ def get_config_yaml(path, args):
     for key in args.keys():
         if args[key] != None:
             config[key] = args[key]
+            
+    config['height'] = config['patch_size']
+    config['width'] = config['patch_size']
     
     # Merge paths
     config['train_dir'] = config['dataset_dir']+config['train_dir']
     config['valid_dir'] = config['dataset_dir']+config['valid_dir']
     config['test_dir'] = config['dataset_dir']+config['test_dir']
     
+    config['p_train_dir'] = config['dataset_dir']+config['p_train_dir']
+    config['p_valid_dir'] = config['dataset_dir']+config['p_valid_dir']
+    config['p_test_dir'] = config['dataset_dir']+config['p_test_dir']
+    
     # Create Callbacks paths
-    config['tensorboard_log_name'] = "{}_epochs_{}_{}".format(config['model_name'],config['epochs'],datetime.now().strftime("%d-%b-%y"))
+    config['tensorboard_log_name'] = "{}_ex_{}_epochs_{}_{}".format(config['model_name'],config['experiment'],config['epochs'],datetime.now().strftime("%d-%b-%y"))
     config['tensorboard_log_dir'] = config['root_dir']+'/logs/'+config['model_name']+'/'
 
-    config['csv_log_name'] = "{}_epochs_{}_{}.csv".format(config['model_name'],config['epochs'],datetime.now().strftime("%d-%b-%y"))
+    config['csv_log_name'] = "{}_ex_{}_epochs_{}_{}.csv".format(config['model_name'],config['experiment'],config['epochs'],datetime.now().strftime("%d-%b-%y"))
     config['csv_log_dir'] = config['root_dir']+'/csv_logger/'+config['model_name']+'/'
 
-    config['checkpoint_name'] = "{}_epochs_{}_{}.hdf5".format(config['model_name'],config['epochs'],datetime.now().strftime("%d-%b-%y"))
+    config['checkpoint_name'] = "{}_ex_{}_epochs_{}_{}.hdf5".format(config['model_name'],config['experiment'],config['epochs'],datetime.now().strftime("%d-%b-%y"))
     config['checkpoint_dir'] = config['root_dir']+'/model/'+config['model_name']+'/'
 
     # Create save model directory

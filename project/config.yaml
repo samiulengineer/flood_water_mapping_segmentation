@@ -1,7 +1,5 @@
 # Image Input/Output
 # ----------------------------------------------------------------------------------------------
-height : 256
-width : 256
 in_channels : 3
 num_classes : 2
 
@@ -10,26 +8,30 @@ num_classes : 2
 # ----------------------------------------------------------------------------------------------
 # unet/mod-unet/dncnn/u2net/vnet/unet++
 model_name : mnet
-batch_size : 3
-epochs : 5000
+batch_size : 10
+epochs : 2
 learning_rate : !!float 3e-4
 val_plot_epoch : 20
 augment : True
 transfer_lr : False
-gpu : !!str 3
+gpu : !!str 2
 
+# Regular/Cls_balance/Patchify
+experiment : regular
 
 # Patchify
 # ----------------------------------------------------------------------------------------------
-patchify : True
-patch_size : 256 # height = width, anyone is suitable
+patchify : False
+patch_size : 512 # height = width, anyone is suitable
 stride : 64
-p_train_dir : train_patch.csv
-p_valid_dir : valid_patch.csv
-p_test_dir : test_patch.csv
+p_train_dir : train_patch.json
+p_valid_dir : valid_patch.json
+p_test_dir : test_patch.json
 
 # Dataset
 # ----------------------------------------------------------------------------------------------
+weights : False
+balance_weights : [0.14, 0.86]
 dataset_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation/data/
 root_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation
 train_size : 0.8
@@ -43,11 +45,9 @@ csv : True
 val_pred_plot : True
 lr : True
 tensorboard : True
-early_stop : True
+early_stop : False
 checkpoint : True
-
-early_stopping_technique : False
-patience : 500 # required for early_stopping, if accuracy does not change for 500 epochs, model will stop automatically
+patience : 300 # required for early_stopping, if accuracy does not change for 500 epochs, model will stop automatically
 
 # Evaluation
 # ----------------------------------------------------------------------------------------------

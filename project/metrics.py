@@ -1,6 +1,7 @@
 from tensorflow.keras import backend as K
 from tensorflow import keras
 import tensorflow as tf
+import segmentation_models as sm
 from sklearn.metrics import confusion_matrix
 import sklearn
 import numpy as np
@@ -59,9 +60,11 @@ def get_metrics(config):
     
     m = MyMeanIOU(config['num_classes'])
     return {
-            'MyMeanIOU': m,
-            'auc': tf.keras.metrics.AUC(num_thresholds=3)
-            #'dice_coef_score':dice_coef_score
+            'm_iou': m,
+            'f1':sm.metrics.f1_score,
+            'precision':sm.metrics.precision,
+            'recall':sm.metrics.recall,
+            'dice_coef':dice_coef_score
             #'cat_acc':cat_acc # reduce mean_iou
           }
 #metrics = ['acc']

@@ -1,6 +1,7 @@
 import os 
 import cv2
 import math
+import json
 import glob
 import shutil
 import random
@@ -10,6 +11,7 @@ import pandas as pd
 from PIL import Image
 import tensorflow as tf
 import albumentations as A
+from utils import get_config_yaml
 from matplotlib import pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
@@ -43,7 +45,7 @@ def transform_data(label, num_classes):
 
 
 
-def read_img(directory, in_channels=None, label=False):
+def read_img(directory, in_channels=None, label=False, patch_idx=None):
     """
     Summary:
         read image with opencv and normalize the feature
@@ -58,7 +60,10 @@ def read_img(directory, in_channels=None, label=False):
         with rasterio.open(directory) as fmask:
             mask = fmask.read(1)
             mask[mask == 255] = 0
-            return mask
+            if patch_idx:
+                return mask[patch_idx[0]:patch_idx[1], patch_idx[2]:patch_idx[3]]
+            else:
+                return mask
     else:
         X = np.zeros((512,512, in_channels))
         for i in range(in_channels):
@@ -67,7 +72,10 @@ def read_img(directory, in_channels=None, label=False):
             with rasterio.open((directory+tmp_ext)) as f:
                 fea = f.read(1)
             X[:,:,i] = (fea - label_norm[i][1]) / label_norm[i][2]
-        return X
+        if patch_idx:
+            return X[patch_idx[0]:patch_idx[1], patch_idx[2]:patch_idx[3],:]
+        else:
+            return X
 
 
 def data_split(images, masks, config):
@@ -148,6 +156,17 @@ def save_patch_idx(path, patch_size=256, stride=8):
     return  patch_idx
 
 
+def write_json(target_path, target_file, data):
+    if not os.path.exists(target_path):
+        try:
+            os.makedirs(target_path)
+        except Exception as e:
+            print(e)
+            raise
+    with open(os.path.join(target_path, target_file), 'w') as f:
+        json.dump(data, f)
+
+
 def patch_images(data, config, name):
     img_dirs = []
     masks_dirs = []
@@ -159,7 +178,7 @@ def patch_images(data, config, name):
             masks_dirs.append(data.masks.values[i])
             all_patch.append(patch)
     temp = {'feature_ids': img_dirs, 'masks': masks_dirs, 'patch_idx':all_patch}
-    save_csv(temp, config, (name+".csv"))
+    write_json(config['dataset_dir'], (name+'.json'), temp)
 
 # Data Augment class
 # ----------------------------------------------------------------------------------------------
@@ -187,7 +206,7 @@ class Augment:
                     A.RandomRotate90(p=0.5),
                     A.Blur(p=0.5),])
 
-    def call(self, feature_dir, label_dir):
+    def call(self, feature_dir, label_dir, patch_idx=None):
         """
         Summary:
             randomly select a directory and augment data 
@@ -205,8 +224,12 @@ class Augment:
         labels = []
 
         for i in aug_idx:
-            img = read_img(feature_dir[i], in_channels = self.channels)
-            mask = read_img(label_dir[i], label=True)
+            if patch_idx:
+                img = read_img(feature_dir[i], in_channels = self.channels, patch_idx=patch_idx[i])
+                mask = read_img(label_dir[i], label=True,patch_idx=patch_idx[i])
+            else:
+                img = read_img(feature_dir[i], in_channels = self.channels)
+                mask = read_img(label_dir[i], label=True)
             augmented = self.aug(image=img, mask=mask)
             features.append(augmented['image'])
             labels.append(augmented['mask'])
@@ -219,7 +242,9 @@ class Augment:
 
 class MyDataset(Sequence):
 
-    def __init__(self, img_dir, tgt_dir, patch_idx, in_channels, batch_size, num_class, transform_fn=None, augment=None, weights=None,):
+    def __init__(self, img_dir, tgt_dir, in_channels, 
+                 batch_size, num_class, patchify,
+                 transform_fn=None, augment=None, weights=None, patch_idx=None):
         """
         Summary:
             initialize class variables
@@ -239,6 +264,7 @@ class MyDataset(Sequence):
         self.img_dir = img_dir
         self.tgt_dir = tgt_dir
         self.patch_idx = patch_idx
+        self.patchify = patchify
         self.in_channels = in_channels
         self.transform_fn = transform_fn
         self.batch_size = batch_size
@@ -271,20 +297,37 @@ class MyDataset(Sequence):
         # get index for single batch
         batch_x = self.img_dir[idx * self.batch_size:(idx + 1) *self.batch_size]
         batch_y = self.tgt_dir[idx * self.batch_size:(idx + 1) *self.batch_size]
+        
+        
+        if self.patchify:
+            batch_patch = self.patch_idx[idx * self.batch_size:(idx + 1) *self.batch_size]
+        
         imgs = []
         tgts = []
         for i in range(len(batch_x)):
-          imgs.append(read_img(batch_x[i], in_channels = self.in_channels))
-          # transform mask for model
-          if self.transform_fn:
-            tgts.append(self.transform_fn(read_img(batch_y[i], label=True), self.num_class))
-          else:
-            tgts.append(read_img(batch_y[i], label=True))
+            if self.patchify:
+                imgs.append(read_img(batch_x[i], in_channels = self.in_channels, patch_idx=batch_patch[i]))
+                # transform mask for model
+                if self.transform_fn:
+                    tgts.append(self.transform_fn(read_img(batch_y[i], label=True,patch_idx=batch_patch[i]), self.num_class))
+                else:
+                    tgts.append(read_img(batch_y[i], label=True,patch_idx=batch_patch[i]))
+            else:
+                imgs.append(read_img(batch_x[i], in_channels = self.in_channels))
+                # transform mask for model
+                if self.transform_fn:
+                    tgts.append(self.transform_fn(read_img(batch_y[i], label=True), self.num_class))
+                else:
+                    tgts.append(read_img(batch_y[i], label=True))
         
         # augment data using Augment class above if augment is true
         if self.augment:
-            aug_imgs, aug_masks = self.augment.call(self.img_dir, self.tgt_dir) # augment images and mask randomly
-            imgs = imgs+aug_imgs
+            if self.patchify:
+                aug_imgs, aug_masks = self.augment.call(self.img_dir, self.tgt_dir, self.patch_idx) # augment images and mask randomly
+                imgs = imgs+aug_imgs
+            else:
+                aug_imgs, aug_masks = self.augment.call(self.img_dir, self.tgt_dir) # augment images and mask randomly
+                imgs = imgs+aug_imgs
 
             # transform mask for model
             if self.transform_fn:
@@ -327,13 +370,22 @@ class MyDataset(Sequence):
         
         imgs = []
         tgts = []
-        imgs.append(read_img(self.img_dir[idx], in_channels=self.in_channels))
-        
-        # transform mask for model
-        if self.transform_fn:
-            tgts.append(self.transform_fn(read_img(self.tgt_dir[idx], label=True), self.num_class))
+        if self.patchify:
+            imgs.append(read_img(self.img_dir[idx], in_channels=self.in_channels,patch_idx=self.patch_idx[idx]))
+            
+            # transform mask for model
+            if self.transform_fn:
+                tgts.append(self.transform_fn(read_img(self.tgt_dir[idx], label=True,patch_idx=self.patch_idx[idx]), self.num_class))
+            else:
+                tgts.append(read_img(self.tgt_dir[idx], label=True,patch_idx=self.patch_idx[idx]))
         else:
-            tgts.append(read_img(self.tgt_dir[idx], label=True))
+            imgs.append(read_img(self.img_dir[idx], in_channels=self.in_channels))
+            
+            # transform mask for model
+            if self.transform_fn:
+                tgts.append(self.transform_fn(read_img(self.tgt_dir[idx], label=True), self.num_class))
+            else:
+                tgts.append(read_img(self.tgt_dir[idx], label=True))
 
         return tf.convert_to_tensor(imgs), tf.convert_to_tensor(tgts), idx
 
@@ -351,7 +403,8 @@ def get_train_val_dataloader(config):
 
     if not (os.path.exists(config['train_dir'])):
         data_path_split(config)
-    if not (os.path.exists(config["p_train_dir"])):
+    if not (os.path.exists(config["p_train_dir"])) and config['patchify']:
+        print("Saving patchify indices.....")
         data = pd.read_csv(config['train_dir'])
         patch_images(data, config, "train_patch")
         
@@ -362,19 +415,29 @@ def get_train_val_dataloader(config):
         patch_images(data, config, "test_patch")
     if config['patchify']:
         print("Loading Patchified features and masks directories.....")
-        train_dir = pd.read_csv(config['p_train_dir'])
-        valid_dir = pd.read_csv(config['p_valid_dir'])
-        train_idx = train_dir.patch_idx.values
-        valid_idx = valid_dir.patch_idx.values
+        with open(config['p_train_dir'], 'r') as j:
+            train_dir = json.loads(j.read())
+        with open(config['p_valid_dir'], 'r') as j:
+            valid_dir = json.loads(j.read())
+        train_features = train_dir['feature_ids']
+        train_masks = train_dir['masks']
+        valid_features = valid_dir['feature_ids']
+        valid_masks = valid_dir['masks']
+        train_idx = train_dir['patch_idx']
+        valid_idx = valid_dir['patch_idx']
     else:
         print("Loading features and masks directories.....")
         train_dir = pd.read_csv(config['train_dir'])
         valid_dir = pd.read_csv(config['valid_dir'])
+        train_features = train_dir.feature_ids.values
+        train_masks = train_dir.masks.values
+        valid_features = valid_dir.feature_ids.values
+        valid_masks = valid_dir.masks.values
         train_idx = None
         valid_idx = None
 
-    print("train Example : {}".format(len(train_dir)))
-    print("valid Example : {}".format(len(valid_dir)))
+    print("train Example : {}".format(len(train_features)))
+    print("valid Example : {}".format(len(valid_features)))
 
 
     # create Augment object if augment is true
@@ -386,16 +449,20 @@ def get_train_val_dataloader(config):
         augment_obj = None
 
     # create dataloader object
-    weights=tf.constant([1.0, 8.0])
-    train_dataset = MyDataset(train_dir.feature_ids.values, train_dir.masks.values, train_idx,
-                                in_channels=config['in_channels'],
+    if config['weights']:
+        weights=tf.constant(config['balance_weights'])
+    else:
+        weights = None
+    train_dataset = MyDataset(train_features, train_masks,
+                                in_channels=config['in_channels'], patchify=config['patchify'],
                                 batch_size=n_batch_size, transform_fn=transform_data, 
-                                num_class=config['num_classes'], augment=augment_obj, weights=weights)
+                                num_class=config['num_classes'], augment=augment_obj, 
+                                weights=weights, patch_idx=train_idx)
 
-    val_dataset = MyDataset(valid_dir.feature_ids.values, valid_dir.masks.values, valid_idx,
-                            in_channels=config['in_channels'],
+    val_dataset = MyDataset(valid_features, valid_masks,
+                            in_channels=config['in_channels'],patchify=config['patchify'],
                             batch_size=config['batch_size'], transform_fn=transform_data, 
-                            num_class=config['num_classes'], weights=weights)
+                            num_class=config['num_classes'], weights=weights,patch_idx=valid_idx)
     
     return train_dataset, val_dataset
 
@@ -428,3 +495,36 @@ def get_test_dataloader(config):
                             num_class=config['num_classes'], weights=tf.constant([1.0, 8.0]))
     
     return test_dataset
+
+if __name__=='__main__':
+    
+    config = get_config_yaml('config.yaml', {})
+    
+    if config['patchify']:
+        with open(config['p_train_dir'], 'r') as j:
+            train_data = json.loads(j.read())
+        labels = train_data['masks']
+        patch_idx = train_data['patch_idx']
+    else:
+        train_data = pd.read_csv(config['train_dir'])
+        labels = train_data.masks.values
+        patch_idx = None
+    class_one_t = 0
+    class_zero = 0
+    total = 0
+
+    for i in range(len(labels)):
+        with rasterio.open(labels[i]) as l:
+            mask = l.read(1)
+        mask[mask == 255] = 0
+        if config['patchify']:
+            idx = patch_idx[i]
+            mask = mask[idx[0]:idx[1], idx[2]:idx[3]]
+        total_pix = mask.shape[0]*mask.shape[1]
+        total += total_pix
+        class_one = np.sum(mask)
+        class_one_t += class_one
+        class_zero_p = total_pix-class_one
+        class_zero += class_zero_p
+    
+    print("Water Class percentage: {}".format((class_one_t/total)*100))

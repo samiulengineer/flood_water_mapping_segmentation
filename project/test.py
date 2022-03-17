@@ -5,7 +5,7 @@ import numpy as np
 from metrics import *
 import tensorflow as tf
 from dataset import get_test_dataloader
-from loss import focal_loss
+from loss import *
 from tensorflow import keras
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
@@ -60,3 +60,7 @@ model = load_model(os.path.join(config['load_model_dir'], config['load_model_nam
 # ----------------------------------------------------------------------------------------------
 
 show_predictions(test_dataset, model, config)
+metrics = list(get_metrics(config).values())
+adam = keras.optimizers.Adam(learning_rate = config['learning_rate'])
+model.compile(optimizer = adam, loss = focal_loss(), metrics = metrics)
+model.evaluate(test_dataset)
