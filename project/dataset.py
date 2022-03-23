@@ -1,21 +1,18 @@
-import os 
-import cv2
+import os
 import math
 import json
-import glob
-import shutil
-import random
+import pathlib
 import rasterio
 import numpy as np
 import pandas as pd
-from PIL import Image
 import tensorflow as tf
 import albumentations as A
-from utils import get_config_yaml
+from utils import get_config_yaml,create_false_color_composite
+import matplotlib
 from matplotlib import pyplot as plt
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical, Sequence
+matplotlib.use('Agg')
 
 # unpack labels        
 label_norm = {0:["_vv.tif", -17.54, 5.15],
@@ -346,7 +343,7 @@ class MyDataset(Sequence):
             class_weights = class_weights/tf.reduce_sum(class_weights)
             y_weights = tf.gather(class_weights, indices=tf.cast(tgts, tf.int32))#([self.paths[i] for i in indexes])
 
-            return tf.convert_to_tensor(imgs), y_weights
+            return tf.convert_to_tensor(imgs), tf.convert_to_tensor(tgts), y_weights
 
         return tf.convert_to_tensor(imgs), tf.convert_to_tensor(tgts)
     
@@ -462,7 +459,7 @@ def get_train_val_dataloader(config):
     val_dataset = MyDataset(valid_features, valid_masks,
                             in_channels=config['in_channels'],patchify=config['patchify'],
                             batch_size=config['batch_size'], transform_fn=transform_data, 
-                            num_class=config['num_classes'], weights=weights,patch_idx=valid_idx)
+                            num_class=config['num_classes'],patch_idx=valid_idx)
     
     return train_dataset, val_dataset
 
@@ -478,35 +475,91 @@ def get_test_dataloader(config):
     """
 
 
-    if not (os.path.exists(config['train_dir'])):
+    if not (os.path.exists(config['test_dir'])):
         data_path_split(config)
+    if not (os.path.exists(config["p_test_dir"])) and config['patchify']:
+        print("Saving patchify indices.....")
+        data = pd.read_csv(config['test_dir'])
+        patch_images(data, config, "test_patch")
+    if config['patchify']:
+        print("Loading Patchified features and masks directories.....")
+        with open(config['p_test_dir'], 'r') as j:
+            test_dir = json.loads(j.read())
+        test_features = test_dir['feature_ids']
+        test_masks = test_dir['masks']
+        test_idx = test_dir['patch_idx']
     else:
-        print("Loading test data directories.....")
-    
-    test_dir = pd.read_csv(config['test_dir'])
+        print("Loading features and masks directories.....")
+        test_dir = pd.read_csv(config['test_dir'])
+        test_features = test_dir.feature_ids.values
+        test_masks = test_dir.masks.values
+        test_idx = None
 
-    
-    print("test Example : {}".format(len(test_dir)))
+    print("test Example : {}".format(len(test_features)))
 
-    # create dataloader object
-    test_dataset = MyDataset(test_dir.feature_ids.values, test_dir.masks.values, test_dir.patch_idx.values,
-                            in_channels=config['in_channels'],
+
+    test_dataset = MyDataset(test_features, test_masks,
+                            in_channels=config['in_channels'],patchify=config['patchify'],
                             batch_size=config['batch_size'], transform_fn=transform_data, 
-                            num_class=config['num_classes'], weights=tf.constant([1.0, 8.0]))
+                            num_class=config['num_classes'],patch_idx=test_idx)
     
     return test_dataset
 
-if __name__=='__main__':
-    
-    config = get_config_yaml('config.yaml', {})
-    
-    if config['patchify']:
-        with open(config['p_train_dir'], 'r') as j:
+
+
+def display_all(display_list, directory, id):
+    """
+    Summary:
+        save all images into single figure
+    Arguments:
+        display_list (dict): a python dictionary key is the title of the figure
+        idx (int) : image index in dataset object
+        directory (str) : path to save the plot figure
+        score (float) : accuracy of the predicted mask
+    Return:
+        save images figure into directory
+    """
+    plt.figure(figsize=(12, 8))
+    title = list(display_list.keys())
+
+    for i in range(len(display_list)):
+        plt.subplot(1, len(display_list), i+1)
+        plt.title(title[i])
+        plt.imshow((display_list[title[i]]))
+        plt.axis('off')
+
+    prediction_name = "img_id_{}.png".format(id) # create file name to save
+    plt.savefig(os.path.join(directory, prediction_name), bbox_inches='tight')
+    plt.clf()
+    plt.cla()
+    plt.close()
+
+def read_img_for_display(data, directory):
+
+    for i in range(len(data)):
+        with rasterio.open((data.feature_ids.values[i]+"_vv.tif")) as vv:
+            vv_img = vv.read(1)
+        with rasterio.open((data.feature_ids.values[i]+"_vh.tif")) as vh:
+            vh_img = vh.read(1)
+        with rasterio.open((data.feature_ids.values[i]+"_nasadem.tif")) as dem:
+            dem_img = dem.read(1)
+        with rasterio.open((data.masks.values[i])) as l:
+            lp_img = l.read(1)
+        id = data.feature_ids.values[i].split("/")[-1]
+        display_all({"color_mask":create_false_color_composite(vv_img, vh_img),
+                    "vv":vv_img, "vh":vh_img, "nasadem":dem_img,"label":lp_img},
+                    directory, id)
+
+
+
+def class_balance_check(patchify, data_dir):
+    if patchify:
+        with open(data_dir, 'r') as j:
             train_data = json.loads(j.read())
         labels = train_data['masks']
         patch_idx = train_data['patch_idx']
     else:
-        train_data = pd.read_csv(config['train_dir'])
+        train_data = pd.read_csv(data_dir)
         labels = train_data.masks.values
         patch_idx = None
     class_one_t = 0
@@ -517,7 +570,7 @@ if __name__=='__main__':
         with rasterio.open(labels[i]) as l:
             mask = l.read(1)
         mask[mask == 255] = 0
-        if config['patchify']:
+        if patchify:
             idx = patch_idx[i]
             mask = mask[idx[0]:idx[1], idx[2]:idx[3]]
         total_pix = mask.shape[0]*mask.shape[1]
@@ -528,3 +581,23 @@ if __name__=='__main__':
         class_zero += class_zero_p
     
     print("Water Class percentage: {}".format((class_one_t/total)*100))
+
+
+
+if __name__=='__main__':
+    
+    config = get_config_yaml('config.yaml', {})
+
+    # check class balance for patchify pass True and p_train_dir
+    # check class balance for original pass False and train_dir
+    class_balance_check(True, config["p_train_dir"])
+
+    pathlib.Path((config['dataset_dir']+'display')).mkdir(parents = True, exist_ok = True)
+
+    train_dir = pd.read_csv(config['train_dir'])
+    test_dir = pd.read_csv(config['test_dir'])
+    valid_dir = pd.read_csv(config['valid_dir'])
+    print("Saving Figures.....")
+    read_img_for_display(train_dir, (config['dataset_dir']+'display'))
+    read_img_for_display(valid_dir, (config['dataset_dir']+'display'))
+    read_img_for_display(test_dir, (config['dataset_dir']+'display'))
