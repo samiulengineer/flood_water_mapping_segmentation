@@ -547,8 +547,12 @@ def read_img_for_display(data, directory):
             lp_img = l.read(1)
         id = data.feature_ids.values[i].split("/")[-1]
         display_all({"color_mask":create_false_color_composite(vv_img, vh_img),
-                    "vv":vv_img, "vh":vh_img, "nasadem":dem_img,"label":lp_img},
-                    directory, id)
+                     "vv":vv_img,
+                     "vh":vh_img,
+                     "nasadem":dem_img,
+                     "label":lp_img},
+                    directory, 
+                    id)
 
 
 
