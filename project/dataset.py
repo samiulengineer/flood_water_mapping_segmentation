@@ -343,7 +343,7 @@ class MyDataset(Sequence):
             class_weights = class_weights/tf.reduce_sum(class_weights)
             y_weights = tf.gather(class_weights, indices=tf.cast(tgts, tf.int32))#([self.paths[i] for i in indexes])
 
-            return tf.convert_to_tensor(imgs), y_weights
+            return tf.convert_to_tensor(imgs), tf.convert_to_tensor(tgts), y_weights
 
         return tf.convert_to_tensor(imgs), tf.convert_to_tensor(tgts)
     
@@ -547,8 +547,17 @@ def read_img_for_display(data, directory):
             lp_img = l.read(1)
         id = data.feature_ids.values[i].split("/")[-1]
         display_all({"color_mask":create_false_color_composite(vv_img, vh_img),
+<<<<<<< HEAD
                     "vv":vv_img, "vh":vh_img, "nasadem":dem_img,"label":lp_img},
                     directory, id)
+=======
+                     "vv":vv_img,
+                     "vh":vh_img,
+                     "nasadem":dem_img,
+                     "label":lp_img},
+                    directory, 
+                    id)
+>>>>>>> cef48fbca34eadf76124fab752c11982024b1d7a
 
 
 
@@ -599,5 +608,10 @@ if __name__=='__main__':
     valid_dir = pd.read_csv(config['valid_dir'])
     print("Saving Figures.....")
     read_img_for_display(train_dir, (config['dataset_dir']+'display'))
+<<<<<<< HEAD
     read_img_for_display(test_dir, (config['dataset_dir']+'display'))
     read_img_for_display(valid_dir, (config['dataset_dir']+'display'))
+=======
+    read_img_for_display(valid_dir, (config['dataset_dir']+'display'))
+    read_img_for_display(test_dir, (config['dataset_dir']+'display'))
+>>>>>>> cef48fbca34eadf76124fab752c11982024b1d7a
