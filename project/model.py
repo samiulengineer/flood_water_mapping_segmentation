@@ -1,9 +1,10 @@
 import os
+from numpy import dtype
 import tensorflow as tf
 from tensorflow import keras
 import segmentation_models as sm
 from tensorflow.keras.models import Model
-from keras_unet_collection import models
+import keras_unet_collection.models as kuc
 from tensorflow.keras import backend as K
 from tensorflow.keras.layers import LeakyReLU, add, Conv2D, PReLU, ReLU, Concatenate, Activation, MaxPool2D, Input, Conv2D, MaxPooling2D, UpSampling2D, concatenate, Conv2DTranspose, BatchNormalization, Dropout, Lambda
 
@@ -498,7 +499,7 @@ def DnCNN(config):
         x = BatchNormalization(axis=-1, epsilon=1e-3)(x)
         x = Activation('relu')(x)   
     # last layer, Conv
-    x = Conv2D(config['num_classes'], (1, 1), activation='softmax')(x)
+    x = Conv2D(config['num_classes'], (1, 1), activation='softmax',dtype='float32')(x)
     # x = Conv2D(filters=6, kernel_size=(3,3), strides=(1,1), padding='same')(x)
     # x = tf.keras.layers.Subtract()([inpt, x])   # input - noise
     model = Model(inputs=inpt, outputs=x)
@@ -727,24 +728,134 @@ def unet_plus_plus(config):
     x04 = LeakyReLU(0.01)(x04)
     x04 = Dropout(0.2)(x04)
 
-    output = Conv2D(config['num_classes'], kernel_size = (1, 1), activation = 'softmax', dtype=tf.float32)(x04)
+    output = Conv2D(config['num_classes'], kernel_size = (1, 1), activation = 'softmax')(x04)
  
     model = Model(inputs=[input], outputs=[output])
     
     return model
 
 
-def v_net(height, width,n_class, n_channels):
+# Keras unet collection
+def kuc_vnet(config):
 
- 
-
-  model = models.vnet_2d((height, width, n_channels), filter_num=[16, 32, 64, 128, 256], n_labels=n_class ,res_num_ini=1, res_num_max=3, 
+    model = kuc.vnet_2d((config['height'], config['width'], config['in_channels']), filter_num=[16, 32, 64, 128, 256], 
+                        n_labels=config['num_classes'] ,res_num_ini=1, res_num_max=3, 
                         activation='PReLU', output_activation='Softmax', 
                         batch_norm=True, pool=False, unpool=False, name='vnet')
-  return model
+    x = model.layers[-2].output # fetch the last layer previous layer output
+    
+    output = Conv2D(config['num_classes'], kernel_size = (1,1), name="out", activation = 'softmax',dtype="float32")(x) # create new last layer
+    model = Model(inputs = model.input, outputs=output)
+    return model
+
+def kuc_unet3pp(config):
+    model = kuc.unet_3plus_2d((config['height'], config['width'], config['in_channels']), 
+                                n_labels=config['num_classes'], filter_num_down=[64, 128, 256, 512], 
+                                filter_num_skip='auto', filter_num_aggregate='auto', 
+                                stack_num_down=2, stack_num_up=1, activation='ReLU', output_activation='Softmax',
+                                batch_norm=True, pool='max', unpool=False, deep_supervision=True, name='unet3plus')
+    x = model.layers[-2].output # fetch the last layer previous layer output
+    
+    output = Conv2D(config['num_classes'], kernel_size = (1,1), name="out", activation = 'softmax',dtype="float32")(x) # create new last layer
+    model = Model(inputs = model.input, outputs=output)
+    return model
+
+def kuc_r2unet(config):
+
+    model = kuc.r2_unet_2d((config['height'], config['width'], config['in_channels']), [64, 128, 256, 512], 
+                            n_labels=config['num_classes'],
+                             stack_num_down=2, stack_num_up=1, recur_num=2,
+                            activation='ReLU', output_activation='Softmax', 
+                            batch_norm=True, pool='max', unpool='nearest', name='r2unet')
+    x = model.layers[-2].output # fetch the last layer previous layer output
+    
+    output = Conv2D(config['num_classes'], kernel_size = (1,1), name="out", activation = 'softmax',dtype="float32")(x) # create new last layer
+    model = Model(inputs = model.input, outputs=output)
+    return model
+
+def kuc_unetpp(config):
+    model = kuc.unet_plus_2d((config['height'], config['width'], config['in_channels']), [64, 128, 256, 512], 
+                            n_labels=config['num_classes'],
+                            stack_num_down=2, stack_num_up=1, recur_num=2,
+                            activation='ReLU', output_activation='Softmax', 
+                            batch_norm=True, pool='max', unpool='nearest', name='r2unet')
+    x = model.layers[-2].output # fetch the last layer previous layer output
+    
+    output = Conv2D(config['num_classes'], kernel_size = (1,1), name="out", activation = 'softmax',dtype="float32")(x) # create new last layer
+    model = Model(inputs = model.input, outputs=output)
+    return model
 
 
-def unet_rafi(config):
+def kuc_restunet(config):
+
+    model = kuc.resunet_a_2d((config['height'], config['width'], config['in_channels']), [32, 64, 128, 256, 512, 1024], 
+                            dilation_num=[1, 3, 15, 31], 
+                            n_labels=config['num_classes'], aspp_num_down=256, aspp_num_up=128, 
+                            activation='ReLU', output_activation='Softmax', 
+                            batch_norm=True, pool=False, unpool='nearest', name='resunet')
+    x = model.layers[-2].output # fetch the last layer previous layer output
+    
+    output = Conv2D(config['num_classes'], kernel_size = (1,1), name="out", activation = 'softmax',dtype="float32")(x) # create new last layer
+    model = Model(inputs = model.input, outputs=output)
+    return model
+
+
+def kuc_tensnet(config):
+    model = kuc.transunet_2d((config['height'], config['width'], config['in_channels']), filter_num=[64, 128, 256, 512],
+                            n_labels=config['num_classes'], stack_num_down=2, stack_num_up=2,
+                            embed_dim=768, num_mlp=3072, num_heads=12, num_transformer=12,
+                            activation='ReLU', mlp_activation='GELU', output_activation='Softmax', 
+                            batch_norm=True, pool=True, unpool='bilinear', name='transunet')
+    x = model.layers[-2].output # fetch the last layer previous layer output
+    
+    output = Conv2D(config['num_classes'], kernel_size = (1,1), name="out", activation = 'softmax',dtype="float32")(x) # create new last layer
+    model = Model(inputs = model.input, outputs=output)
+    return model
+
+
+def kuc_swinnet(config):
+    model = kuc.swin_unet_2d((config['height'], config['width'], config['in_channels']), filter_num_begin=64, 
+                            n_labels=config['num_classes'], depth=4, stack_num_down=2, stack_num_up=2, 
+                            patch_size=(2, 2), num_heads=[4, 8, 8, 8], window_size=[4, 2, 2, 2], num_mlp=512, 
+                            output_activation='Softmax', shift_window=True, name='swin_unet')
+    x = model.layers[-2].output # fetch the last layer previous layer output
+    
+    output = Conv2D(config['num_classes'], kernel_size = (1,1), name="out", activation = 'softmax',dtype="float32")(x) # create new last layer
+    model = Model(inputs = model.input, outputs=output)
+    return model
+
+
+def kuc_u2net(config):
+    model = kuc.u2net_2d((config['height'], config['width'], config['in_channels']), n_labels=config['num_classes'], 
+                            filter_num_down=[64, 128, 256, 512], filter_num_up=[64, 64, 128, 256], 
+                            filter_mid_num_down=[32, 32, 64, 128], filter_mid_num_up=[16, 32, 64, 128], 
+                            filter_4f_num=[512, 512], filter_4f_mid_num=[256, 256], 
+                            activation='ReLU', output_activation='Softmax', 
+                            batch_norm=True, pool=False, unpool=False, deep_supervision=True, name='u2net')
+    x = model.layers[-2].output # fetch the last layer previous layer output
+    
+    output = Conv2D(config['num_classes'], kernel_size = (1,1), name="out", activation = 'softmax',dtype="float32")(x) # create new last layer
+    model = Model(inputs = model.input, outputs=output)
+    return model 
+
+
+
+def kuc_attunet(config):
+  
+    model = kuc.att_unet_2d((config['height'], config['width'], config['in_channels']), [64, 128, 256, 512], 
+                            n_labels=config['num_classes'],
+                            stack_num_down=2, stack_num_up=2,
+                            activation='ReLU', atten_activation='ReLU', attention='add', output_activation=None, 
+                            batch_norm=True, pool=False, unpool='bilinear', name='attunet')
+    x = model.layers[-2].output # fetch the last layer previous layer output
+    
+    output = Conv2D(config['num_classes'], kernel_size = (1,1), name="out", activation = 'softmax',dtype="float32")(x) # create new last layer
+    model = Model(inputs = model.input, outputs=output)
+    return model
+
+
+# Segmentation Models unet/linknet/fpn/pspnet
+def sm_unet(config):
     """
     arguments: no arguments
     
@@ -752,9 +863,69 @@ def unet_rafi(config):
     
     """
 
-    model = sm.Unet('efficientnetb0', input_shape=(config['height'], config['width'], config['in_channels']),
+    model = sm.Unet(backbone_name='efficientnetb0', input_shape=(config['height'], config['width'], config['in_channels']),
+                    classes = config['num_classes'], activation='softmax',
                     encoder_weights=None, weights=None)
+    x = model.layers[-2].output # fetch the last layer previous layer output
+    
+    output = Conv2D(config['num_classes'], kernel_size = (1,1), name="out", activation = 'softmax',dtype="float32")(x) # create new last layer
+    model = Model(inputs = model.input, outputs=output)
     return model
+
+
+def sm_linknet(config):
+    """
+    arguments: no arguments
+    
+    return: unet model
+    
+    """
+
+    model = sm.Linknet(backbone_name='efficientnetb0', input_shape=(config['height'], config['width'], config['in_channels']),
+                    classes = config['num_classes'], activation='softmax',
+                    encoder_weights=None, weights=None)
+    x = model.layers[-2].output # fetch the last layer previous layer output
+    
+    output = Conv2D(config['num_classes'], kernel_size = (1,1), name="out", activation = 'softmax',dtype="float32")(x) # create new last layer
+    model = Model(inputs = model.input, outputs=output)
+    return model
+
+
+def sm_fpn(config):
+    """
+    arguments: no arguments
+    
+    return: unet model
+    
+    """
+
+    model = sm.FPN(backbone_name='efficientnetb0', input_shape=(config['height'], config['width'], config['in_channels']),
+                    classes = config['num_classes'], activation='softmax',
+                    encoder_weights=None, weights=None)
+    x = model.layers[-2].output # fetch the last layer previous layer output
+    
+    output = Conv2D(config['num_classes'], kernel_size = (1,1), name="out", activation = 'softmax',dtype="float32")(x) # create new last layer
+    model = Model(inputs = model.input, outputs=output)
+    return model
+
+
+def sm_pspnet(config):
+    """
+    arguments: no arguments
+    
+    return: unet model
+    
+    """
+
+    model = sm.PSPNet(backbone_name='efficientnetb0', input_shape=(config['height'], config['width'], config['in_channels']),
+                    classes = config['num_classes'], activation='softmax',
+                    encoder_weights=None, weights=None)
+    x = model.layers[-2].output # fetch the last layer previous layer output
+    
+    output = Conv2D(config['num_classes'], kernel_size = (1,1), name="out", activation = 'softmax',dtype="float32")(x) # create new last layer
+    model = Model(inputs = model.input, outputs=output)
+    return model
+
 
 
 # Transfer Learning
@@ -783,6 +954,111 @@ def get_model_transfer_lr(model, num_classes):
     
     return model
 
+def ex_mnet(num_classes = 2, img_height = 256, img_width = 256, img_channels = 3):
+    #Build the model
+    inputs = Input((img_height, img_width, img_channels))
+    
+    #Contraction path
+    c1 = Conv2D(16, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(inputs)
+    c1 = Dropout(0.2)(c1)  # Original 0.1
+    c1 = Conv2D(16, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c1)
+    p1 = MaxPooling2D((2, 2))(c1)
+    
+    c2 = Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(p1)
+    c2 = Dropout(0.2)(c2)  # Original 0.1
+    c2 = Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c2)
+    p2 = MaxPooling2D((2, 2))(c2)
+     
+    c3 = Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(p2)
+    c3 = Dropout(0.2)(c3)
+    c3 = Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c3)
+    p3 = MaxPooling2D((2, 2))(c3)
+     
+    c4 = Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(p3)
+    c4 = Dropout(0.2)(c4)
+    c4 = Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c4)
+    p4 = MaxPooling2D(pool_size=(2, 2))(c4)
+    
+    c5 = Conv2D(256, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(p4)
+    c5 = Dropout(0.2)(c5)  # Original 0.1
+    c5 = Conv2D(256, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c5)
+    p5 = MaxPooling2D((2, 2))(c5)
+     
+    c6 = Conv2D(512, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(p5)
+    c6 = Dropout(0.2)(c6)
+    c6 = Conv2D(512, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c6)
+    p6 = MaxPooling2D((2, 2))(c6)
+
+    c7 = Conv2D(1024, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(p6)
+    c7 = Dropout(0.2)(c7)
+    c7 = Conv2D(1024, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c7)
+    p7 = MaxPooling2D((2, 2))(c7)
+
+    c8 = Conv2D(2048, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(p7)
+    c8 = Dropout(0.2)(c8)
+    c8 = Conv2D(2048, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c8)
+    p8 = MaxPooling2D((2, 2))(c8)
+     
+    c9 = Conv2D(4096, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(p8)
+    c9 = Dropout(0.3)(c9)
+    c9 = Conv2D(4096, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c9)
+    
+
+    # Expansive path
+
+    u10 = Conv2DTranspose(2048, (2, 2), strides=(2, 2), padding='same')(c9)
+    u10 = concatenate([u10, c8])
+    c10 = Conv2D(2048, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(u10)
+    c10 = Dropout(0.2)(c10)
+    c10 = Conv2D(2048, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c10)
+
+    u11 = Conv2DTranspose(1024, (2, 2), strides=(2, 2), padding='same')(c10)
+    u11 = concatenate([u11, c7])
+    c11 = Conv2D(1024, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(u11)
+    c11 = Dropout(0.2)(c11)
+    c11 = Conv2D(1024, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c11)
+
+    u12 = Conv2DTranspose(512, (2, 2), strides=(2, 2), padding='same')(c11)
+    u12 = concatenate([u12, c6])
+    c12 = Conv2D(512, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(u12)
+    c12 = Dropout(0.2)(c12)
+    c12 = Conv2D(512, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c12)
+    
+    u13 = Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same')(c12)
+    u13 = concatenate([u13, c5])
+    c13 = Conv2D(256, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(u13)
+    c13 = Dropout(0.2)(c13)
+    c13 = Conv2D(256, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c13)
+        
+    u14 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same')(c13)
+    u14 = concatenate([u14, c4])
+    c14 = Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(u14)
+    c14 = Dropout(0.2)(c14)
+    c14 = Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c14)
+     
+    u15 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same')(c14)
+    u15 = concatenate([u15, c3])
+    c15 = Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(u15)
+    c15 = Dropout(0.2)(c15)
+    c15 = Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c15)
+     
+    u16 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same')(c15)
+    u16 = concatenate([u16, c2])
+    c16 = Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(u16)
+    c16 = Dropout(0.2)(c16)  # Original 0.1
+    c16 = Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c16)
+     
+    u17 = Conv2DTranspose(16, (2, 2), strides=(2, 2), padding='same')(c16)
+    u17 = concatenate([u17, c1], axis=3)
+    c17 = Conv2D(16, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(u17)
+    c17 = Dropout(0.2)(c17)  # Original 0.1
+    c17 = Conv2D(16, (3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c17)
+     
+    outputs = Conv2D(num_classes, (1, 1), activation='softmax')(c17)
+     
+    model = Model(inputs=[inputs], outputs=[outputs])
+    
+    return model
 
 # Get model
 # ----------------------------------------------------------------------------------------------
@@ -800,16 +1076,28 @@ def get_model(config):
 
     models = {'unet': unet,
               'mnet': mod_unet,
+              'mnet2':ex_mnet,
               'dncnn': DnCNN,
               'u2net': u2net,
               'vnet': vnet,
               'unet++': unet_plus_plus,
-              'unet_rafi':unet_rafi}
+              'sm_unet':sm_unet,
+              'sm_linknet':sm_linknet,
+              'sm_fpn':sm_fpn,
+              'sm_pspnet':sm_pspnet,
+              'kuc_vnet':kuc_vnet,
+              'kuc_unet3pp':kuc_unet3pp,
+              'kuc_r2unet':kuc_r2unet,
+              'kuc_unetpp':kuc_unetpp,
+              'kuc_restunet':kuc_restunet,
+              'kuc_tensnet':kuc_tensnet,
+              'kuc_swinnet':kuc_swinnet,
+              'kuc_u2net':kuc_u2net,
+              'kuc_attunet':kuc_attunet
+              }
     return models[config['model_name']](config)    
 
 if __name__ == '__main__':
     
     model = vnet()
     model.summary()
-    
-    
