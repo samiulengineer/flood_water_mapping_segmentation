@@ -14,23 +14,21 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras import mixed_precision
 
 tf.config.optimizer.set_jit("True")
-#mixed_precision.set_global_policy('mixed_float16')
+mixed_precision.set_global_policy('mixed_float16')
 
 
-# Parsing variable
+# Parsing variable ctrl + /
 # ----------------------------------------------------------------------------------------------
-'''
-parser = argparse.ArgumentParser()
-parser.add_argument("--gpu")
-parser.add_argument("--root_dir")
-parser.add_argument("--dataset_dir")
-parser.add_argument("--model_name")
-parser.add_argument("--epochs")
-parser.add_argument("--batch_size")
-parser.add_argument("--index")
+# parser = argparse.ArgumentParser()
+# parser.add_argument("--gpu")
+# parser.add_argument("--root_dir")
+# parser.add_argument("--dataset_dir")
+# parser.add_argument("--model_name")
+# parser.add_argument("--epochs")
+# parser.add_argument("--batch_size")
+# parser.add_argument("--index")
 
-args = parser.parse_args()
-'''
+# args = parser.parse_args()
 
 # Set up train configaration
 # ----------------------------------------------------------------------------------------------
@@ -54,10 +52,11 @@ print("Preprocessed Data = {}".format(os.path.exists(config['train_dir'])))
 # ----------------------------------------------------------------------------------------------
 
 train_dataset, val_dataset = get_train_val_dataloader(config)
+# model = load_model(os.path.join(config['load_model_dir'], config['load_model_name']), compile = False)
 
 
 # enable training strategy
-metrics = ['acc'] + list(get_metrics(config).values())
+metrics = list(get_metrics(config).values())
 adam = keras.optimizers.Adam(learning_rate = config['learning_rate'])
 
 # create dictionary with all custom function to pass in custom_objects
@@ -88,6 +87,8 @@ else:
 
 loggers = SelectCallbacks(val_dataset, model, config)
 
+model.summary()
+
 
 # fit
 # ----------------------------------------------------------------------------------------------
@@ -100,3 +101,27 @@ history = model.fit(train_dataset,
                     callbacks = loggers.get_callbacks(val_dataset, model),
                     )
 #model.save('/content/drive/MyDrive/CSML_dataset/model/my_model.h5')
+"""
+for batch in train_dataset:
+    print(batch[0].shape)
+    print(batch[1].shape)
+    break
+"""
+
+
+# create new last layer
+model = keras.models.Model(inputs = model.input, outputs=model.layers[5].output) 
+
+for batch in train_dataset:
+    out = model(batch[0], training=False)
+    break
+
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(12, 8))
+for i in range((8)):
+    plt.subplot(1, 8, i+1)
+    plt.title("image : {}".format(16+i))
+    plt.imshow((out[0][:,:,16+i]))
+    plt.axis('off')
+plt.savefig("third_8", bbox_inches='tight')
