@@ -2,7 +2,6 @@ import os
 import math
 import yaml
 import itertools
-import gc
 import numpy as np
 import pathlib
 import tensorflow as tf
@@ -57,7 +56,6 @@ class SelectCallbacks(keras.callbacks.Callback):
             save predict mask
         """
         if (epoch % self.config['val_plot_epoch'] == 0): # every after certain epochs the model will predict mask
-            gc.collect()
             show_predictions(self.val_dataset, self.model, self.config, True)
 
     def get_callbacks(self, val_dataset, model):
@@ -167,7 +165,7 @@ def show_predictions(dataset, model, config, val=False):
             m = keras.metrics.MeanIoU(num_classes=6)
             m.update_state(mask[i], pred_mask[i])
             score = m.result().numpy()
-            display({"Feature": feature[i],
+            display({#"Feature": feature[i],
                       "Mask": mask[i],
                       "Prediction (MeanIOU_{:.4f})".format(score): pred_mask[i]
                       }, idx, directory, score, config['experiment'])
@@ -272,3 +270,56 @@ def get_config_yaml(path, args):
     config['prediction_val_dir'] = config['root_dir']+'/prediction/'+config['model_name']+'/validation/'
 
     return config
+
+
+
+# Helper functions for visualizing Sentinel-1 images
+def scale_img(matrix):
+    """
+    Returns a scaled (H, W, D) image that is visually inspectable.
+    Image is linearly scaled between min_ and max_value, by channel.
+
+    Args:
+        matrix (np.array): (H, W, D) image to be scaled
+
+    Returns:
+        np.array: Image (H, W, 3) ready for visualization
+    """
+    # Set min/max values
+    min_values = np.array([[-23, -28, 0.2]])
+    max_values = np.array([[0, -5, 1]])
+
+    # Reshape matrix
+    w, h, d = matrix.shape
+    matrix = np.reshape(matrix, [w * h, d]).astype(np.float64)
+
+    # Scale by min/max
+    matrix = (matrix - min_values) / (
+        max_values - min_values
+    )
+    matrix = np.reshape(matrix, [w, h, d])
+
+    # Limit values to 0/1 interval
+    return matrix.clip(0, 1)
+
+def create_false_color_composite(vv_img, vh_img):
+    """
+    Returns a S1 false color composite for visualization.
+
+    Args:
+        path_vv (str): path to the VV band
+        path_vh (str): path to the VH band
+
+    Returns:
+        np.array: image (H, W, 3) ready for visualization
+    """    
+    # Stack arrays along the last dimension
+    s1_img = np.stack((vv_img, vh_img), axis=-1)
+
+    # Create false color composite
+    img = np.zeros((512, 512, 3), dtype=np.float32)
+    img[:,:,:2] = s1_img.copy()
+    img[:, :, 2] = (s1_img[:, :, 0]*s1_img[:, :, 1])
+
+
+    return scale_img(img)
