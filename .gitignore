@@ -153,7 +153,6 @@ wandb
 *.h5
 *.hdf5
 *.npz
-*.png
 *.v2
 *.pb
 *.gz
