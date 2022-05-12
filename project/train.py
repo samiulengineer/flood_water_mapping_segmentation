@@ -3,6 +3,7 @@ import sys
 import math
 import glob
 import argparse
+import time
 from loss import *
 import segmentation_models as sm
 from model import get_model, get_model_transfer_lr
@@ -19,23 +20,27 @@ tf.config.optimizer.set_jit("True")
 
 # Parsing variable
 # ----------------------------------------------------------------------------------------------
-'''
+
 parser = argparse.ArgumentParser()
-parser.add_argument("--gpu")
 parser.add_argument("--root_dir")
 parser.add_argument("--dataset_dir")
 parser.add_argument("--model_name")
 parser.add_argument("--epochs")
 parser.add_argument("--batch_size")
 parser.add_argument("--index")
+parser.add_argument("--experiment")
+parser.add_argument("--patchify")
+parser.add_argument("--patch_size")
+parser.add_argument("--weights")
+parser.add_argument("--patch_class_balance")
 
 args = parser.parse_args()
-'''
+
 
 # Set up train configaration
 # ----------------------------------------------------------------------------------------------
 
-config = get_config_yaml('config.yaml', {})
+config = get_config_yaml('config.yaml', vars(args))
 create_paths(config)
 
 
@@ -47,6 +52,8 @@ print("Model = {}".format(config['model_name']))
 print("Epochs = {}".format(config['epochs']))
 print("Batch Size = {}".format(config['batch_size']))
 print("Preprocessed Data = {}".format(os.path.exists(config['train_dir'])))
+print("Class Weigth = {}".format(str(config['weights'])))
+print("Experiment = {}".format(str(config['experiment'])))
 
 
 
@@ -57,7 +64,7 @@ train_dataset, val_dataset = get_train_val_dataloader(config)
 
 
 # enable training strategy
-metrics = ['acc'] + list(get_metrics(config).values())
+metrics = list(get_metrics(config).values())
 adam = keras.optimizers.Adam(learning_rate = config['learning_rate'])
 
 # create dictionary with all custom function to pass in custom_objects
@@ -87,11 +94,11 @@ else:
 # ----------------------------------------------------------------------------------------------
 
 loggers = SelectCallbacks(val_dataset, model, config)
-
+model.summary()
 
 # fit
 # ----------------------------------------------------------------------------------------------
-
+t0 = time.time()
 history = model.fit(train_dataset,
                     verbose = 1, 
                     epochs = config['epochs'],
@@ -99,4 +106,5 @@ history = model.fit(train_dataset,
                     shuffle = False,
                     callbacks = loggers.get_callbacks(val_dataset, model),
                     )
+print("training time minute: {}".format((time.time()-t0)/60))
 #model.save('/content/drive/MyDrive/CSML_dataset/model/my_model.h5')

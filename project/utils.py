@@ -1,15 +1,17 @@
 import os
 import math
 import yaml
-import itertools
-import gc
+import glob
 import numpy as np
+import pandas as pd
 import pathlib
+from loss import *
 import tensorflow as tf
+import earthpy.plot as ep
+import earthpy.spatial as es
 from tensorflow import keras
 from datetime import datetime
 import matplotlib.pyplot as plt
-from tensorflow.keras import backend as K
 
 
 # Callbacks and Prediction during Training
@@ -57,7 +59,6 @@ class SelectCallbacks(keras.callbacks.Callback):
             save predict mask
         """
         if (epoch % self.config['val_plot_epoch'] == 0): # every after certain epochs the model will predict mask
-            gc.collect()
             show_predictions(self.val_dataset, self.model, self.config, True)
 
     def get_callbacks(self, val_dataset, model):
@@ -108,6 +109,7 @@ def create_mask(mask, pred_mask):
 
 # Sub-ploting and save
 # ----------------------------------------------------------------------------------------------
+
 def display(display_list, idx, directory, score, exp):
     """
     Summary:
@@ -117,6 +119,7 @@ def display(display_list, idx, directory, score, exp):
         idx (int) : image index in dataset object
         directory (str) : path to save the plot figure
         score (float) : accuracy of the predicted mask
+        exp (str): experiment name
     Return:
         save images figure into directory
     """
@@ -125,12 +128,31 @@ def display(display_list, idx, directory, score, exp):
 
     for i in range(len(display_list)):
         plt.subplot(1, len(display_list), i+1)
-        plt.title(title[i])
-        plt.imshow((display_list[title[i]]))
-        plt.axis('off')
+        if title[i]=="DEM":
+            ax = plt.gca()
+            hillshade = es.hillshade(display_list[title[i]], azimuth=180)
+            ep.plot_bands(
+                display_list[title[i]],
+                cbar=False,
+                cmap="terrain",
+                title=title[i],
+                ax=ax
+            )
+            ax.imshow(hillshade, cmap="Greys", alpha=0.5)
+        elif title[i]=="VV" or title[i]=="VH":
+            plt.title(title[i])
+            plt.imshow((display_list[title[i]]), cmap="gray")
+            plt.axis('off')
+        else:
+            plt.title(title[i])
+            plt.imshow((display_list[title[i]]))
+            plt.axis('off')
 
-    prediction_name = "img_ex_{}_{}_acc_{:.4f}.png".format(exp, idx, score) # create file name to save
-    return plt.savefig(os.path.join(directory, prediction_name), bbox_inches='tight')
+    prediction_name = "img_ex_{}_{}_MeanIOU_{:.4f}.png".format(exp, idx, score) # create file name to save
+    plt.savefig(os.path.join(directory, prediction_name), bbox_inches='tight')
+    plt.clf()
+    plt.cla()
+    plt.close()
 
 
 # Save all plot figures
@@ -143,6 +165,7 @@ def show_predictions(dataset, model, config, val=False):
         dataset (object): MyDataset class object
         model (object): keras.Model class object
         config (dict): configuration dictionary
+        val (bool): for validation plot save
     Output:
         save predicted image/images
     """
@@ -153,7 +176,7 @@ def show_predictions(dataset, model, config, val=False):
         directory = config['prediction_test_dir']
 
     # save single image after prediction from dataset
-    if config['single_image']:
+    if config['plot_single']:
         feature, mask, idx = dataset.get_random_data(config['index'])
         data = [(feature, mask)]
     else:
@@ -164,10 +187,12 @@ def show_predictions(dataset, model, config, val=False):
         prediction = model.predict_on_batch(feature)
         mask, pred_mask = create_mask(mask, prediction)
         for i in range(len(feature)): # save single image prediction in the batch
-            m = keras.metrics.MeanIoU(num_classes=6)
+            m = keras.metrics.MeanIoU(num_classes=config['num_classes'])
             m.update_state(mask[i], pred_mask[i])
             score = m.result().numpy()
-            display({"Feature": feature[i],
+            display({"VV": feature[i][:,:,0],
+                     "VH": feature[i][:,:,1],
+                     "DEM": feature[i][:,:,2],
                       "Mask": mask[i],
                       "Prediction (MeanIOU_{:.4f})".format(score): pred_mask[i]
                       }, idx, directory, score, config['experiment'])
@@ -272,3 +297,136 @@ def get_config_yaml(path, args):
     config['prediction_val_dir'] = config['root_dir']+'/prediction/'+config['model_name']+'/validation/'
 
     return config
+
+
+
+# Helper functions for visualizing Sentinel-1 images
+def scale_img(matrix):
+    """
+    Returns a scaled (H, W, D) image that is visually inspectable.
+    Image is linearly scaled between min_ and max_value, by channel.
+
+    Args:
+        matrix (np.array): (H, W, D) image to be scaled
+
+    Returns:
+        np.array: Image (H, W, 3) ready for visualization
+    """
+    # Set min/max values
+    min_values = np.array([[-23, -28, 0.2]])
+    max_values = np.array([[0, -5, 1]])
+
+    # Reshape matrix
+    w, h, d = matrix.shape
+    matrix = np.reshape(matrix, [w * h, d]).astype(np.float64)
+
+    # Scale by min/max
+    matrix = (matrix - min_values) / (
+        max_values - min_values
+    )
+    matrix = np.reshape(matrix, [w, h, d])
+
+    # Limit values to 0/1 interval
+    return matrix.clip(0, 1)
+
+def create_false_color_composite(vv_img, vh_img):
+    """
+    Returns a S1 false color composite for visualization.
+
+    Args:
+        path_vv (str): path to the VV band
+        path_vh (str): path to the VH band
+
+    Returns:
+        np.array: image (H, W, 3) ready for visualization
+    """    
+    # Stack arrays along the last dimension
+    s1_img = np.stack((vv_img, vh_img), axis=-1)
+
+    # Create false color composite
+    img = np.zeros((512, 512, 3), dtype=np.float32)
+    img[:,:,:2] = s1_img.copy()
+    img[:, :, 2] = (s1_img[:, :, 0]*s1_img[:, :, 1])
+
+
+    return scale_img(img)
+
+def plot_3d():
+    
+    # extract csv logger paths
+    paths = glob.glob("/home/mdsamiul/github_project/flood_water_mapping_segmentation/csv_logger/ad_unet/*.csv")
+    
+    # smooth plotting values
+    def my_tb_smooth(scalars: list[float], weight: float) -> list[float]:  # Weight between 0 and 1
+        """
+
+        ref: https://stackoverflow.com/questions/42011419/is-it-possible-to-call-tensorboard-smooth-function-manually
+
+        :param scalars:
+        :param weight:
+        :return:
+        """
+        last = scalars[0]  # First value in the plot (first timestep)
+        smoothed: list = []
+        for point in scalars:
+            smoothed_val = last * weight + (1 - weight) * point  # Calculate smoothed value
+            smoothed.append(smoothed_val)                        # Save it
+            last = smoothed_val                                  # Anchor the last smoothed value
+        return smoothed
+    
+    # initialize variables
+    epoch = []
+    mean_iou = []
+    patch = []
+    
+    # read data and smooth for plot
+    for path in paths:
+        if path.split("_")[-5] == "patchify" and path.split("_")[-2]=="60":
+            patch_size = int(path.split("_")[-4])
+        else:
+            patch_size = 512
+        data = pd.read_csv(path)
+        epoch.append(range(0, 60*2))
+        mean_iou.append(my_tb_smooth(data["val_my_mean_iou"][:60], 0.95)+(my_tb_smooth(data["val_my_mean_iou"][:60], 0.95)[::-1]))
+        patch.append(([patch_size]*60)+([patch_size]*60))
+    
+    # numpy array convert for plot
+    epoch = np.array(epoch)
+    mean_iou = np.array(mean_iou)
+    patch = np.array(patch)
+    
+    # create figure and plot
+    fig = plt.figure()
+    ax = plt.axes(projection='3d')
+    ax.plot_surface(patch, epoch, mean_iou,rstride=1, cstride=1,
+                    cmap='jet', edgecolor='none')\
+    
+    # customize figure visualization with labels and title
+    ax.set_yticklabels([-1,10, 20, 40, 40,20, 10])
+    ax.view_init(elev=20, azim=70)
+    plt.title('MeanIou accuracy for different patch size')
+    ax.set_zlabel("MeanIou accuracy")
+    ax.set_ylabel('Epoch')
+    ax.set_xlabel('Patch')
+    plt.savefig("area2.png", dpi=800)
+    plt.show()
+
+def find_best_worst():
+
+    path = glob.glob("/home/mdsamiul/github_project/flood_water_mapping_segmentation/prediction/mnet/test/*.*")
+
+    scores = np.zeros((55, 4), dtype=np.float32)
+    for i in range(len(path)):
+        id = int(path[i].split("_")[-3])
+        acu = np.float32(path[i].split("_")[-1].replace(".png", ""))
+        if path[i].split("_")[-4] == "patchify":
+            scores[id][2] = acu
+        elif path[i].split("_")[-4] == "balance":
+            scores[id][1] = acu
+        elif path[i].split("_")[-4] == "WOC":
+            scores[id][3] = acu
+        else:
+            scores[id][0] = acu
+
+    df = pd.DataFrame(scores)
+    df.to_csv("predic_score.csv")

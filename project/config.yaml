@@ -9,32 +9,33 @@ num_classes : 2
 # unet/mod-unet/dncnn/u2net/vnet/unet++
 model_name : mnet
 batch_size : 10
-epochs : 2
+epochs : 300
 learning_rate : !!float 3e-4
 val_plot_epoch : 20
 augment : True
 transfer_lr : False
 gpu : !!str 2
 
-# Regular/Cls_balance/Patchify
-experiment : regular
+# Regular/Cls_balance/Patchify/Patchify_WOC
+experiment : patchify
 
 # Patchify
 # ----------------------------------------------------------------------------------------------
-patchify : False
-patch_size : 512 # height = width, anyone is suitable
+patchify : True
+patch_class_balance : False # whether to use class balance while doing patchify
+patch_size : 256 # height = width, anyone is suitable
 stride : 64
-p_train_dir : train_patch.json
-p_valid_dir : valid_patch.json
-p_test_dir : test_patch.json
+p_train_dir : train_patch_384.json
+p_valid_dir : valid_patch_384.json
+p_test_dir : test_patch_256.json
 
 # Dataset
 # ----------------------------------------------------------------------------------------------
-weights : False
+weights : True
 balance_weights : [0.14, 0.86]
 dataset_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation/data/
 root_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation
-train_size : 0.8
+train_size : 0.8  # validation 10% and test 10%
 train_dir : train.csv
 valid_dir : valid.csv
 test_dir : test.csv
@@ -51,9 +52,9 @@ patience : 300 # required for early_stopping, if accuracy does not change for 50
 
 # Evaluation
 # ----------------------------------------------------------------------------------------------
-load_model_name : epochs_30_07-Mar-22.hdf5
-load_model_dir : None
+load_model_name : mnet_ex_patchify_epochs_2000_02-Apr-22.hdf5
+load_model_dir : None  # if by default model directory change. Then change it here
 
 
-single_image : True # if True, then only index x_test image will plot
+plot_single : True # if True, then only index x_test image will plot
 index : -1 # by default -1 means random image else specific index image provide by user

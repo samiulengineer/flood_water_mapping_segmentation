@@ -15,8 +15,16 @@ class MyMeanIOU(tf.keras.metrics.MeanIoU):
     def update_state(self, y_true, y_pred, sample_weight=None):
         return super().update_state(tf.argmax(y_true, axis=3), tf.argmax(y_pred, axis=3), sample_weight)
 
+
+# Keras categorical accuracy
+# ----------------------------------------------------------------------------------------------
+
 def cat_acc(y_true, y_pred):
     return keras.metrics.categorical_accuracy(y_true,y_pred)
+
+
+# Custom dice coefficient metric
+# ----------------------------------------------------------------------------------------------
 
 def dice_coef(y_true, y_pred, smooth=1):
     y_true_f = K.flatten(y_true)
@@ -27,8 +35,16 @@ def dice_coef(y_true, y_pred, smooth=1):
 def dice_coef_score(y_true, y_pred):
     return dice_coef(y_true, y_pred)
 
+
+# Keras AUC metric
+# ----------------------------------------------------------------------------------------------
+
 def auc():
     return tf.keras.metrics.AUC(num_thresholds=3)
+
+
+# Custom jaccard score
+# ----------------------------------------------------------------------------------------------
 
 def jaccard_score(y_true, y_pred, smooth=1):
 
@@ -37,14 +53,9 @@ def jaccard_score(y_true, y_pred, smooth=1):
     jac = (intersection + smooth) / (sum_ - intersection + smooth)
     
     return (jac) * smooth + tf.keras.losses.binary_crossentropy(y_true, y_pred)
-'''
-meanIOU
-class acc separate
-dice cof
-f1 accuracy
-auc
-'''
-# Matrics
+
+
+# Metrics
 # ----------------------------------------------------------------------------------------------
 
 def get_metrics(config):
@@ -60,11 +71,11 @@ def get_metrics(config):
     
     m = MyMeanIOU(config['num_classes'])
     return {
-            'm_iou': m,
-            'f1':sm.metrics.f1_score,
+            'my_mean_iou': m,
+            'f1_score':sm.metrics.f1_score,
             'precision':sm.metrics.precision,
             'recall':sm.metrics.recall,
-            'dice_coef':dice_coef_score
+            'dice_coef_score':dice_coef_score
             #'cat_acc':cat_acc # reduce mean_iou
           }
 #metrics = ['acc']
