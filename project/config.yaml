@@ -6,12 +6,13 @@ num_classes : 2
 
 # Training
 # ----------------------------------------------------------------------------------------------
-# unet/mod-unet/dncnn/u2net/vnet/unet++
+# unet/mod-unet/dncnn/u2net/vnet/unet++      This our custom models
+# sm_unet/sm_linknet/sm_fpn/sm_pspnet                    This models collect from Segmentation Models library
 model_name : mnet
-batch_size : 10
-epochs : 300
+batch_size : 2
+epochs : 10
 learning_rate : !!float 3e-4
-val_plot_epoch : 20
+val_plot_epoch : 2
 augment : True
 transfer_lr : False
 gpu : !!str 2
@@ -31,11 +32,11 @@ p_test_dir : test_patch_256.json
 
 # Dataset
 # ----------------------------------------------------------------------------------------------
-weights : True
-balance_weights : [0.14, 0.86]
-dataset_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation/data/
-root_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation
-train_size : 0.8  # validation 10% and test 10%
+weights : False
+balance_weights : [1.4, 8.6]
+dataset_dir : D:/CSML_workPlace/flood_water_ditection_satellite/data/
+root_dir : D:/CSML_workPlace/flood_water_ditection_satellite
+train_size : 0.8
 train_dir : train.csv
 valid_dir : valid.csv
 test_dir : test.csv
@@ -46,14 +47,14 @@ csv : True
 val_pred_plot : True
 lr : True
 tensorboard : True
-early_stop : False
+early_stop : True
 checkpoint : True
 patience : 300 # required for early_stopping, if accuracy does not change for 500 epochs, model will stop automatically
 
 # Evaluation
 # ----------------------------------------------------------------------------------------------
-load_model_name : mnet_ex_patchify_epochs_2000_02-Apr-22.hdf5
-load_model_dir : None  # if by default model directory change. Then change it here
+load_model_name : mnet_epochs_30_07-Mar-22.hdf5
+load_model_dir : None
 
 
 plot_single : True # if True, then only index x_test image will plot

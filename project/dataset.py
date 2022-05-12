@@ -11,7 +11,7 @@ import albumentations as A
 import earthpy.plot as ep
 import rasterio
 import earthpy.spatial as es
-from utils import get_config_yaml,create_false_color_composite
+from utils import get_config_yaml
 import matplotlib
 from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
@@ -689,9 +689,7 @@ def read_img_for_display(data, directory):
             lp_img = l.read(1)
             lp_img[lp_img==255]=0
         id = data.feature_ids.values[i].split("/")[-1]
-        
-        display_all({
-                     "vv":vv_img,
+        display_all( {"vv":vv_img,
                      "vh":vh_img,
                      "dem":dem_img,
                      "label":lp_img},

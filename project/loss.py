@@ -1,5 +1,6 @@
 import os
 from tensorflow import keras
+from tensorflow.keras import backend as K
 import tensorflow as tf
 import segmentation_models as sm
 
@@ -38,3 +39,11 @@ def focal_loss(alpha=0.25, gamma=2):
         return tf.reduce_mean(loss)
 
     return loss
+
+def bce_jaccard_loss(y_true, y_pred, smooth=1):
+
+    intersection = K.sum(K.abs(y_true * y_pred), axis=-1)
+    sum_ = K.sum(K.abs(y_true) + K.abs(y_pred), axis=-1)
+    jac = (intersection + smooth) / (sum_ - intersection + smooth)
+    
+    return (1 - jac) * smooth + tf.keras.losses.binary_crossentropy(y_true, y_pred)
