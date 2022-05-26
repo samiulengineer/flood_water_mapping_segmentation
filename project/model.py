@@ -3,6 +3,8 @@ import math
 from numpy import dtype
 import tensorflow as tf
 from tensorflow import keras
+from tensorflow.keras import layers
+from einops import rearrange
 import segmentation_models as sm
 from tensorflow.keras.models import Model
 import keras_unet_collection.models as kuc
@@ -1354,6 +1356,248 @@ def wnet(config):
     return model
 
 
+
+
+image_size = 512  # We'll resize input images to this size
+patch_size = 16  # Size of the patches to be extract from the input images
+num_patches = (image_size // patch_size) ** 2
+projection_dim = 192
+num_heads = 4
+input_shape = (512, 512, 3)
+num_class = 2
+transformer_units = [
+    projection_dim * 3,
+    projection_dim,
+]  # Size of the transformer layers
+transformer_layers = 8
+
+
+def mlp(x, hidden_units, dropout_rate):
+    for units in hidden_units:
+        x = layers.Dense(units, activation=tf.nn.gelu)(x)
+        x = layers.Dropout(dropout_rate)(x)
+    return x
+
+
+class Patches(layers.Layer):
+    def __init__(self, patch_size):
+        super(Patches, self).__init__()
+        self.patch_size = patch_size
+
+    def call(self, images):
+        batch_size = tf.shape(images)[0]
+        patches = tf.image.extract_patches(
+            images=images,
+            sizes=[1, self.patch_size, self.patch_size, 1],
+            strides=[1, self.patch_size, self.patch_size, 1],
+            rates=[1, 1, 1, 1],
+            padding="VALID",
+        )
+        patch_dims = patches.shape[-1]
+        patches = tf.reshape(patches, [batch_size, -1, patch_dims])
+        return patches
+    def get_config(self):
+        return {"patch_size": self.patch_size}
+
+
+class PatchEncoder(layers.Layer):
+    def __init__(self, num_patches, projection_dim):
+        super(PatchEncoder, self).__init__()
+        self.num_patches = num_patches
+        self.projection_dim = projection_dim
+        self.projection = layers.Dense(units=projection_dim)
+        self.position_embedding = layers.Embedding(
+            input_dim=num_patches, output_dim=projection_dim
+        )
+
+    def call(self, patch):
+        positions = tf.range(start=0, limit=self.num_patches, delta=1)
+        encoded = self.projection(patch) + self.position_embedding(positions)
+        return encoded
+    
+    def get_config(self):
+        return {"num_patches": self.num_patches,
+                "projection_dim": self.projection_dim}
+
+
+class DecoderLinear(layers.Layer):
+    def __init__(self, n_cls, patch_size):
+        super().__init__()
+
+        self.patch_size = patch_size
+        self.n_cls = n_cls
+        self.im_size = (512, 512)
+
+        self.head = layers.Dense(n_cls)
+
+    def call(self, x):
+        H, W = self.im_size
+        GS = H // self.patch_size
+        x = self.head(x)
+        x = rearrange(x, "b (h w) c -> b h w c", h=GS)
+
+        return x
+
+
+class Block(layers.Layer):
+    def __init__(self, num_heads, projection_dim,  transformer_units, dropout=0.1):
+        super().__init__()
+
+        self.dropout = dropout
+        self.num_heads = num_heads
+        self.projection_dim = projection_dim
+        self.transformer_units = transformer_units
+
+        self.x1 = layers.LayerNormalization(epsilon=1e-6)
+        self.attention_output = layers.MultiHeadAttention(
+            num_heads=num_heads, key_dim=projection_dim, dropout=dropout
+        )
+        self.x2 = layers.Add()
+        self.x3 = layers.LayerNormalization(epsilon=1e-6)
+        self.dense1 = layers.Dense(transformer_units, activation=tf.nn.gelu)
+        self.drop = layers.Dropout(dropout)
+        self.dense2 = layers.Dense(projection_dim, activation=tf.nn.gelu)
+        self.x4 = layers.Add()
+
+    def call(self, encoded_patches):
+        # Layer normalization 1.
+        tmp1 = self.x1(encoded_patches)
+
+        # Create a multi-head attention layer.
+        att_out = self.attention_output(tmp1, tmp1)
+
+        # Skip connection 1.
+        tmp2 = self.x2([att_out, encoded_patches])
+
+        # Layer normalization 2.
+        tmp3 = self.x3(tmp2)
+
+        # MLP
+        tmp3 = self.drop(self.dense1(tmp3))
+        tmp3 = self.drop(self.dense2(tmp3))
+
+        # Skip connection 2.
+        encoded_patches = self.x4([tmp3,tmp2])
+        return encoded_patches
+    
+    def get_config(self):
+        return {"num_heads": self.num_heads,
+                "projection_dim": self.projection_dim,
+                "transformer_units": self.transformer_units,
+                "dropout": self.dropout}
+
+
+class MaskTransformer(layers.Layer):
+    def __init__(
+        self,
+        n_cls,
+        patch_size,
+        d_encoder,
+        n_layers,
+        n_heads,
+        d_model,
+        dropout,
+    ):
+        super(MaskTransformer, self).__init__()
+        self.d_encoder = d_encoder
+        self.patch_size = patch_size
+        self.n_layers = n_layers
+        self.n_cls = n_cls
+        self.n_heads = n_heads
+        self.dropout = dropout
+        self.d_model = d_model
+        self.scale = d_model ** -0.5
+        self.im_size = (512, 512)
+
+        self.blocks = [Block(n_heads, d_model, d_model*4, dropout) for _ in range(n_layers)]
+
+        self.cls_emb = tf.Variable(tf.random.truncated_normal((1, n_cls, d_model), stddev=0.2, seed=123), trainable=False, name="cls_emb")
+        self.proj_dec = layers.Dense(d_model)
+
+        self.proj_patch = tf.Variable(self.scale * tf.random.normal((d_model, d_model)), name="proj_patch")
+        self.proj_classes = tf.Variable(self.scale * tf.random.normal((d_model, d_model)), name="proj_classes")
+
+        self.decoder_norm = layers.LayerNormalization(epsilon=1e-6)
+        self.mask_norm = layers.LayerNormalization(epsilon=1e-6)
+
+        #trunc_normal_(self.cls_emb, std=0.02)
+
+    def call(self, x):
+        H, W = self.im_size
+        GS = H // self.patch_size
+
+        x = self.proj_dec(x)
+        cls_emb = tf.tile(self.cls_emb, [x.shape[0], 1, 1])
+        x = tf.concat([x, cls_emb], 1) # x-> [None, 1024, 192] cls_emb-> [None, 2, 192]
+        for blk in self.blocks:
+            x = blk(x)
+        x = self.decoder_norm(x)
+
+        patches, cls_seg_feat = x[:, : -self.n_cls], x[:, -self.n_cls :]
+        patches = patches @ self.proj_patch
+        cls_seg_feat = cls_seg_feat @ self.proj_classes
+
+        patches = patches / tf.norm(patches, axis=-1, keepdims=True)
+        cls_seg_feat = cls_seg_feat / tf.norm(cls_seg_feat, axis=-1, keepdims=True)
+
+        masks = patches @ tf.transpose(cls_seg_feat, perm=[0,2,1])
+        masks = self.mask_norm(masks)
+        masks = rearrange(masks, "b (h w) n -> b h w n", h=int(GS))
+
+        return masks
+
+    def get_attention_map(self, x, layer_id):
+        if layer_id >= self.n_layers or layer_id < 0:
+            raise ValueError(
+                f"Provided layer_id: {layer_id} is not valid. 0 <= {layer_id} < {self.n_layers}."
+            )
+        x = self.proj_dec(x)
+        cls_emb = self.cls_emb.expand(x.size(0), -1, -1)
+        x = tf.concat([x, cls_emb], 1)
+        for i, blk in enumerate(self.blocks):
+            if i < layer_id:
+                x = blk(x)
+            else:
+                return blk(x, return_attention=True)
+    def get_config(self):
+        return {"d_encoder": self.d_encoder,
+                "patch_size": self.patch_size,
+                "n_layers": self.n_layers,
+                "n_cls": self.n_cls,
+                "n_heads": self.n_heads,
+                "dropout": self.dropout,
+                "d_model": self.d_model,
+                "scale": self.scale,
+                "im_size": self.im_size}
+
+
+def create_vit_classifier(config):
+    inputs = layers.Input(shape=input_shape, batch_size=config["batch_size"])
+    # Augment data.
+    # Create patches.
+    patches = Patches(patch_size)(inputs)
+    # Encode patches.
+    encoded_patches = PatchEncoder(num_patches, projection_dim)(patches)
+
+    # Create multiple layers of the Transformer block.
+    for _ in range(transformer_layers):
+        encoded_patches = Block(num_heads, projection_dim, projection_dim*3, 0.1)(encoded_patches)
+
+    # Create a [batch_size, projection_dim] tensor.
+    representation = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
+    head = layers.Dense(1000)(representation)
+    #logits = DecoderLinear(n_cls=num_class, patch_size=patch_size)(head)
+    masks = MaskTransformer(n_cls=num_class, patch_size=patch_size, d_encoder=projection_dim, 
+                            n_layers=2, n_heads=3, d_model=projection_dim, dropout=0.1)(head)
+    logits = layers.UpSampling2D((16,16), interpolation="bilinear")(masks)
+    
+
+    # Create the Keras model.
+    model = keras.Model(inputs=inputs, outputs=logits)
+    return model
+
+
+
 # Get model
 # ----------------------------------------------------------------------------------------------
 
@@ -1388,7 +1632,8 @@ def get_model(config):
               'kuc_swinnet':kuc_swinnet,
               'kuc_u2net':kuc_u2net,
               'kuc_attunet':kuc_attunet,
-              'ad_unet':ad_unet
+              'ad_unet':ad_unet,
+              "transformer":create_vit_classifier
               }
     return models[config['model_name']](config)    
 

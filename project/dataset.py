@@ -46,7 +46,7 @@ def transform_data(label, num_classes):
 
 
 
-def read_img(directory, in_channels=None, label=False, patch_idx=None):
+def read_img(directory, in_channels=None, label=False, patch_idx=None, height=512, width=512):
     """
     Summary:
         read image with rasterio and normalize the feature
@@ -68,7 +68,7 @@ def read_img(directory, in_channels=None, label=False, patch_idx=None):
             else:
                 return mask
     else:
-        X = np.zeros((512,512, in_channels))
+        X = np.zeros((height,width, in_channels))
         
         # read N number of channels
         for i in range(in_channels):
@@ -375,7 +375,7 @@ class MyDataset(Sequence):
         """
 
 
-        return math.ceil(len(self.img_dir) / self.batch_size)
+        return math.ceil(len(self.img_dir) // self.batch_size)
 
 
     def __getitem__(self, idx):

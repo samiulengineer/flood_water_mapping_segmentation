@@ -12,10 +12,11 @@ from tensorflow import keras
 from utils import set_gpu, SelectCallbacks, get_config_yaml, create_paths
 from dataset import get_train_val_dataloader
 from tensorflow.keras.models import load_model
+import tensorflow_addons as tfa
 from tensorflow.keras import mixed_precision
 
 tf.config.optimizer.set_jit("True")
-mixed_precision.set_global_policy('mixed_float16')
+#mixed_precision.set_global_policy('mixed_float16')
 
 
 # Parsing variable ctrl + /
@@ -66,11 +67,20 @@ train_dataset, val_dataset = get_train_val_dataloader(config)
 
 # enable training strategy
 metrics = list(get_metrics(config).values())
-adam = keras.optimizers.Adam(learning_rate = config['learning_rate'])
+
+learning_rate = 0.001
+weight_decay = 0.0001
+#adam = keras.optimizers.Adam(learning_rate = config['learning_rate'])
+
+adam = tfa.optimizers.AdamW(
+        learning_rate=learning_rate, weight_decay=weight_decay
+    )
 
 # create dictionary with all custom function to pass in custom_objects
 custom_obj = get_metrics(config) 
 custom_obj['loss'] = focal_loss()
+#loss = focal_loss()
+loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 if (os.path.exists(os.path.join(config['load_model_dir'], config['load_model_name']))) and config['transfer_lr']:
     print("Build model for transfer learning..")
@@ -78,7 +88,7 @@ if (os.path.exists(os.path.join(config['load_model_dir'], config['load_model_nam
     model = load_model(os.path.join(config['load_model_dir'], config['load_model_name']), custom_objects=custom_obj, compile = True)
 
     model = get_model_transfer_lr(model, config['num_classes'])
-    model.compile(optimizer = adam, loss = focal_loss(), metrics = metrics)
+    model.compile(optimizer = adam, loss = loss, metrics = metrics)
 
 else:
     if (os.path.exists(os.path.join(config['load_model_dir'], config['load_model_name']))):
@@ -88,7 +98,7 @@ else:
 
     else:
         model = get_model(config)
-        model.compile(optimizer = adam, loss = focal_loss(), metrics = metrics)
+        model.compile(optimizer = adam, loss = loss, metrics = metrics)
 
 
 # Set up Callbacks
@@ -106,6 +116,7 @@ history = model.fit(train_dataset,
                     validation_data = val_dataset, 
                     shuffle = False,
                     callbacks = loggers.get_callbacks(val_dataset, model),
+                    
                     )
 print("training time minute: {}".format((time.time()-t0)/60))
 #model.save('/content/drive/MyDrive/CSML_dataset/model/my_model.h5')
