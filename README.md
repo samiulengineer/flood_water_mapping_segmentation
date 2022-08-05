@@ -17,8 +17,9 @@ The dataset collected from the competition: [Map Floodwater from Radar Imagery](
 
 Some examples from dataset.
 
-![Alternate text](/project/img_id_ayt06.png)
-![Alternate text](/project/img_id_jja07.png)
+![Alternate text](/readme/img_id_ayt01.png)
+![Alternate text](/readme/img_id_jja60.png)
+![Alternate text](/readme/img_id_kuo02.png)
 
 
 ## Models
@@ -158,16 +159,16 @@ Best             |
 :-------------------------:
 ![Alternate text](/readme/best.png)
 Worst           |
-![Alternate text](worst.png)
+![Alternate text](/readme/worst.png)
 
 ## Overview of the .py files
 
 The following figures are the overview of the important .py files in this repo.
 
-![Alternate text](fullpipeline.png)
+![Alternate text](/readme/fullpipeline.png)
 
-![Alternate text](dataset.png)
+![Alternate text](/readme/dataset.png)
 
-![Alternate text](utils.png)
+![Alternate text](/readme/utils.png)
 
-![Alternate text](visualization.png)
+![Alternate text](/readme/visualization.png)
