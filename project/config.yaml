@@ -16,6 +16,8 @@ augment : True
 transfer_lr : False
 gpu : !!str 2
 
+# Experiment Setup
+# ----------------------------------------------------------------------------------------------
 # regular/cls_balance/patchify/patchify_WOC
 experiment : patchify
 
