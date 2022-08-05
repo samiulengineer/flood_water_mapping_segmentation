@@ -1611,7 +1611,7 @@ def get_model(config):
 
 
     models = {'unet': unet,
-              'mnet': mod_unet,
+              'fapnet': mod_unet,
               'ex_mnet':ex_mnet,
               'dncnn': DnCNN,
               'u2net': u2net,
