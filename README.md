@@ -112,6 +112,20 @@ python train.py --root_dir YOUR_ROOT_DIR \
     --weights True \
 ```
 
+* **Patchify Without class Balance (PHR)**: In this experiment we take all the patch images for each chip.
+
+```
+python train.py --root_dir YOUR_ROOT_DIR \
+    --dataset_dir YOUR_ROOT_DIR/data/ \
+    --model_name unet \
+    --epochs 10 \
+    --batch_size 3 \
+    --index -1 \
+    --experiment patchify_WOC \
+    --patchify True \
+    --patch_size 256 \
+    --weights False \
+
 * **Patchify (PHR-CB)**: In this experiment we take a threshold value (19%) of water class and remove the patch images for each chip that are less than threshold value.
 
 ```
@@ -128,19 +142,6 @@ python train.py --root_dir YOUR_ROOT_DIR \
     --patch_class_balance True
 ```
 
-* **Patchify Without class Balance (PHR)**: In this experiment we take all the patch images for each chip.
-
-```
-python train.py --root_dir YOUR_ROOT_DIR \
-    --dataset_dir YOUR_ROOT_DIR/data/ \
-    --model_name unet \
-    --epochs 10 \
-    --batch_size 3 \
-    --index -1 \
-    --experiment patchify_WOC \
-    --patchify True \
-    --patch_size 256 \
-    --weights False \
 ```
 
 ## Testing
