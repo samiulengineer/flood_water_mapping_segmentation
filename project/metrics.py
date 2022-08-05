@@ -2,10 +2,6 @@ from tensorflow.keras import backend as K
 from tensorflow import keras
 import tensorflow as tf
 import segmentation_models as sm
-from sklearn.metrics import confusion_matrix
-import sklearn
-import numpy as np
-import matplotlib.pyplot as plt
 
 
 # Keras MeanIoU

@@ -1,19 +1,12 @@
 import os
 import math
 import json
-import pathlib
 import rasterio
 import numpy as np
 import pandas as pd
-from requests import patch
 import tensorflow as tf
 import albumentations as A
-import earthpy.plot as ep
-import rasterio
-import earthpy.spatial as es
-from utils import get_config_yaml
 import matplotlib
-from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical, Sequence
 matplotlib.use('Agg')
@@ -270,7 +263,7 @@ def patch_images(data, config, name):
     temp = {'feature_ids': img_dirs, 'masks': masks_dirs, 'patch_idx':all_patch}
     
     # save data
-    write_json(config['dataset_dir'], (name+str(config['patch_size'])+'.json'), temp)
+    write_json((config['dataset_dir']+"json/"), (name+str(config['patch_size'])+'.json'), temp)
 
 # Data Augment class
 # ----------------------------------------------------------------------------------------------
@@ -618,141 +611,3 @@ def get_test_dataloader(config):
                             num_class=config['num_classes'],patch_idx=test_idx)
     
     return test_dataset
-
-
-
-def display_all(display_list, directory, id):
-    """
-    Summary:
-        save all images into single figure
-    Arguments:
-        display_list (dict): a python dictionary key is the title of the figure
-        id (str) : image id in dataset
-        directory (str) : path to save the plot figure
-    Return:
-        save images figure into directory
-    """
-    plt.figure(figsize=(12, 8))
-    title = list(display_list.keys())
-
-    for i in range(len(display_list)):
-        plt.subplot(1, len(display_list), i+1)
-        
-        # plot dem channel using earthpy
-        if title[i]=="dem":
-            ax = plt.gca()
-            hillshade = es.hillshade(display_list[title[i]], azimuth=180)
-            ep.plot_bands(
-                display_list[title[i]],
-                cbar=False,
-                cmap="terrain",
-                title=title[i],
-                ax=ax
-            )
-            ax.imshow(hillshade, cmap="Greys", alpha=0.5)
-        
-        # gray image plot vv and vh channels
-        elif title[i]=="vv" or title[i]=="vh":
-            plt.title(title[i])
-            plt.imshow((display_list[title[i]]), cmap="gray")
-            plt.axis('off')
-        else:
-            plt.title(title[i])
-            plt.imshow((display_list[title[i]]))
-            plt.axis('off')
-
-    prediction_name = "img_id_{}.png".format(id) # create file name to save
-    plt.savefig(os.path.join(directory, prediction_name), bbox_inches='tight', dpi=800)
-    plt.clf()
-    plt.cla()
-    plt.close()
-
-def read_img_for_display(data, directory):
-    """
-    Summary:
-        save all images into single figure
-    Arguments:
-        data : data file holding images path
-        directory (str) : path to save images
-    Return:
-        save images figure into directory
-    """
-    
-    for i in range(len(data)):
-        with rasterio.open((data.feature_ids.values[i]+"_vv.tif")) as vv:
-            vv_img = vv.read(1)
-        with rasterio.open((data.feature_ids.values[i]+"_vh.tif")) as vh:
-            vh_img = vh.read(1)
-        with rasterio.open((data.feature_ids.values[i]+"_nasadem.tif")) as dem:
-            dem_img = dem.read(1)
-        with rasterio.open((data.masks.values[i])) as l:
-            lp_img = l.read(1)
-            lp_img[lp_img==255]=0
-        id = data.feature_ids.values[i].split("/")[-1]
-        display_all( {"vv":vv_img,
-                     "vh":vh_img,
-                     "dem":dem_img,
-                     "label":lp_img},
-                    directory, 
-                    id)
-
-
-
-def class_balance_check(patchify, data_dir):
-    """
-    Summary:
-        checking class percentage in full dataset
-    Arguments:
-        patchify (bool): TRUE if want to check class balance for patchify experiments
-        data_dir (str): directory where data files save
-    Return:
-        class percentage
-    """
-    if patchify:
-        with open(data_dir, 'r') as j:
-            train_data = json.loads(j.read())
-        labels = train_data['masks']
-        patch_idx = train_data['patch_idx']
-    else:
-        train_data = pd.read_csv(data_dir)
-        labels = train_data.masks.values
-        patch_idx = None
-    class_one_t = 0
-    class_zero = 0
-    total = 0
-
-    for i in range(len(labels)):
-        with rasterio.open(labels[i]) as l:
-            mask = l.read(1)
-        mask[mask == 255] = 0
-        if patchify:
-            idx = patch_idx[i]
-            mask = mask[idx[0]:idx[1], idx[2]:idx[3]]
-        total_pix = mask.shape[0]*mask.shape[1]
-        total += total_pix
-        class_one = np.sum(mask)
-        class_one_t += class_one
-        class_zero_p = total_pix-class_one
-        class_zero += class_zero_p
-    
-    print("Water Class percentage: {}".format((class_one_t/total)*100))
-
-
-
-if __name__=='__main__':
-    
-    config = get_config_yaml('config.yaml', {})
-
-    # check class balance for patchify pass True and p_train_dir
-    # check class balance for original pass False and train_dir
-    class_balance_check(True, config["p_train_dir"])
-
-    pathlib.Path((config['dataset_dir']+'display')).mkdir(parents = True, exist_ok = True)
-
-    train_dir = pd.read_csv(config['train_dir'])
-    test_dir = pd.read_csv(config['test_dir'])
-    valid_dir = pd.read_csv(config['valid_dir'])
-    print("Saving Figures.....")
-    read_img_for_display(train_dir, (config['dataset_dir']+'display'))
-    read_img_for_display(valid_dir, (config['dataset_dir']+'display'))
-    read_img_for_display(test_dir, (config['dataset_dir']+'display'))

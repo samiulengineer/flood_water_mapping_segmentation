@@ -159,3 +159,17 @@ Best             |
 ![Alternate text](best.png)
 Worst           |
 ![Alternate text](worst.png)
+
+## Overview of the .py files
+
+The following figures are the overview of the important .py files in this repo.
+
+![Alternate text](fullpipeline.png)
+
+![Alternate text](dataset.png)
+
+![Alternate text](utils.png)
+
+![Alternate text](visualization.png)
+
+![Alternate text](best.png)

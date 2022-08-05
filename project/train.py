@@ -1,11 +1,7 @@
 import os
-import sys
-import math
-import glob
 import argparse
 import time
 from loss import *
-import segmentation_models as sm
 from model import get_model, get_model_transfer_lr
 from metrics import get_metrics
 from tensorflow import keras
@@ -13,7 +9,6 @@ from utils import set_gpu, SelectCallbacks, get_config_yaml, create_paths
 from dataset import get_train_val_dataloader
 from tensorflow.keras.models import load_model
 import tensorflow_addons as tfa
-from tensorflow.keras import mixed_precision
 
 tf.config.optimizer.set_jit("True")
 #mixed_precision.set_global_policy('mixed_float16')
@@ -119,28 +114,3 @@ history = model.fit(train_dataset,
                     
                     )
 print("training time minute: {}".format((time.time()-t0)/60))
-#model.save('/content/drive/MyDrive/CSML_dataset/model/my_model.h5')
-"""
-for batch in train_dataset:
-    print(batch[0].shape)
-    print(batch[1].shape)
-    break
-"""
-
-
-# create new last layer
-model = keras.models.Model(inputs = model.input, outputs=model.layers[5].output) 
-
-for batch in train_dataset:
-    out = model(batch[0], training=False)
-    break
-
-import matplotlib.pyplot as plt
-
-plt.figure(figsize=(12, 8))
-for i in range((8)):
-    plt.subplot(1, 8, i+1)
-    plt.title("image : {}".format(16+i))
-    plt.imshow((out[0][:,:,16+i]))
-    plt.axis('off')
-plt.savefig("third_8", bbox_inches='tight')

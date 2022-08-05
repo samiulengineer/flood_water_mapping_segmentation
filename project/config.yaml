@@ -8,7 +8,7 @@ num_classes : 2
 # ----------------------------------------------------------------------------------------------
 # unet/mod-unet/dncnn/u2net/vnet/unet++      This our custom models
 # sm_unet/sm_linknet/sm_fpn/sm_pspnet                    This models collect from Segmentation Models library
-model_name : transformer
+model_name : mnet
 batch_size : 6
 epochs : 2000
 learning_rate : !!float 3e-4
@@ -17,18 +17,18 @@ augment : True
 transfer_lr : False
 gpu : !!str 2
 
-# Regular/Cls_balance/Patchify/Patchify_WOC
-experiment : regular
+# regular/cls_balance/patchify/patchify_WOC
+experiment : patchify
 
 # Patchify
 # ----------------------------------------------------------------------------------------------
-patchify : False
+patchify : True
 patch_class_balance : False # whether to use class balance while doing patchify
-patch_size : 512 # height = width, anyone is suitable
+patch_size : 256 # height = width, anyone is suitable
 stride : 64
-p_train_dir : train_patch_384.json
-p_valid_dir : valid_patch_384.json
-p_test_dir : test_patch_case_128.json
+p_train_dir : json/train_patch_256.json
+p_valid_dir : json/valid_patch_256.json
+p_test_dir : json/test_patch_256.json
 
 # Dataset
 # ----------------------------------------------------------------------------------------------
@@ -53,7 +53,7 @@ patience : 300 # required for early_stopping, if accuracy does not change for 50
 
 # Evaluation
 # ----------------------------------------------------------------------------------------------
-load_model_name : mnet_ex_patchify_128_epochs_2000_09-Apr-22.hdf5
+load_model_name : m.hdf5
 load_model_dir : None
 
 

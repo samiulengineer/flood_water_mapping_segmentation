@@ -1,5 +1,4 @@
 import os
-from tensorflow import keras
 from tensorflow.keras import backend as K
 import tensorflow as tf
 import segmentation_models as sm

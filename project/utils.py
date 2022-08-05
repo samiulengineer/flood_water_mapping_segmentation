@@ -1,4 +1,5 @@
 import os
+import json
 import math
 import yaml
 import glob
@@ -12,6 +13,7 @@ import earthpy.spatial as es
 from tensorflow import keras
 from datetime import datetime
 import matplotlib.pyplot as plt
+from dataset import read_img, transform_data
 
 
 # Callbacks and Prediction during Training
@@ -198,6 +200,51 @@ def show_predictions(dataset, model, config, val=False):
                       }, idx, directory, score, config['experiment'])
             idx += 1
 
+# Combine patch images and save
+# ----------------------------------------------------------------------------------------------
+def patch_show_predictions(dataset, model, config):
+    # predict patch images and merge together 
+    
+    with open(config['p_test_dir'], 'r') as j:
+        patch_test_dir = json.loads(j.read())
+    
+    df = pd.DataFrame.from_dict(patch_test_dir)
+    test_dir = pd.read_csv(config['test_dir'])
+    total_score = 0.0
+    
+    # loop to traverse full dataset
+    for i in range(len(test_dir)):
+        idx = df[df["masks"]==test_dir["masks"][i]].index
+        
+        # construct a single full image from prediction patch images
+        pred_full_label = np.zeros((512,512), dtype=int)
+        for j in idx:
+            p_idx = patch_test_dir["patch_idx"][j]
+            feature, mask, _ = dataset.get_random_data(j)
+            pred_mask = model.predict(feature)
+            pred_mask = np.argmax(pred_mask, axis = 3)
+            pred_full_label[p_idx[0]:p_idx[1], p_idx[2]:p_idx[3]] = pred_mask[0]
+        
+        
+        # read original image and mask
+        feature = read_img(test_dir["feature_ids"][i], in_channels=config['in_channels'])
+        mask = transform_data(read_img(test_dir["masks"][i], label=True), config['num_classes'])
+        
+        # calculate keras MeanIOU score
+        m = keras.metrics.MeanIoU(num_classes=config['num_classes'])
+        m.update_state(np.argmax([mask], axis = 3), [pred_full_label])
+        score = m.result().numpy()
+        total_score += score
+        
+        # plot and saving image
+        display({"VV": feature[:,:,0],
+                    "VH": feature[:,:,1],
+                    "DEM": feature[:,:,2],
+                    "Mask": np.argmax([mask], axis = 3)[0],
+                    "Prediction (MeanIOU_{:.4f})".format(score): pred_full_label
+                    }, i, config['prediction_test_dir'], score, config['experiment'])
+
+
 # GPU setting
 # ----------------------------------------------------------------------------------------------
 def set_gpu(gpus):
@@ -295,6 +342,8 @@ def get_config_yaml(path, args):
     # Create Evaluation directory
     config['prediction_test_dir'] = config['root_dir']+'/prediction/'+config['model_name']+'/test/'
     config['prediction_val_dir'] = config['root_dir']+'/prediction/'+config['model_name']+'/validation/'
+    
+    config['visualization_dir'] = config['root_dir']+'/visualization/'
 
     return config
 
