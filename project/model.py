@@ -1271,7 +1271,7 @@ def ex_mnet(config):
     
     return model
 
-
+#PLANET model
 def wnet(config):
     no_layer = 0
     inp_size = config["height"]

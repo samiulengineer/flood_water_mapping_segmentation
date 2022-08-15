@@ -3,10 +3,9 @@
 in_channels : 3
 num_classes : 2
 
-
 # Training
 # ----------------------------------------------------------------------------------------------
-# unet, fapnet, ex_mnet, dncnn, u2net, vnet, unet++, sm_unet, sm_linknet, sm_fpn, sm_pspnet, kuc_vnet, kuc_unet3pp, kuc_r2unet, kuc_unetpp, kuc_restunet, kuc_tensnet, kuc_swinnet, kuc_u2net, kuc_attunet, ad_unet, transformer
+# mnet = fapnet, unet, fapnet, ex_mnet, dncnn, u2net, vnet, unet++, sm_unet, sm_linknet, sm_fpn, sm_pspnet, kuc_vnet, kuc_unet3pp, kuc_r2unet, kuc_unetpp, kuc_restunet, kuc_tensnet, kuc_swinnet, kuc_u2net, kuc_attunet, ad_unet, transformer
 model_name : mnet
 batch_size : 6
 epochs : 2000
@@ -19,9 +18,10 @@ gpu : !!str 2
 # Experiment Setup
 # ----------------------------------------------------------------------------------------------
 # regular/cls_balance/patchify/patchify_WOC
+# cfr = regular, cfr_cb = cls_balance, phr = patchify, phr_cb = patchify_WOC
 experiment : patchify
 
-# Patchify
+# Patchify (phr & phr_cb experiment)
 # ----------------------------------------------------------------------------------------------
 patchify : True
 patch_class_balance : False # whether to use class balance while doing patchify
@@ -33,8 +33,8 @@ p_test_dir : json/test_patch_256.json
 
 # Dataset
 # ----------------------------------------------------------------------------------------------
-weights : False
-balance_weights : [1.4, 8.6]
+weights : False # False if cfr, True if cfr_cb
+balance_weights : [1.4, 8.6] # cfr_cb experiment
 dataset_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation/data/
 root_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation
 train_size : 0.8
