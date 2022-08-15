@@ -57,6 +57,7 @@ patience : 300 # required for early_stopping, if accuracy does not change for 50
 load_model_name : m.hdf5
 load_model_dir : None
 
-
+# Prediction Plot
+# ----------------------------------------------------------------------------------------------
 plot_single : True # if True, then only index x_test image will plot
 index : -1 # by default -1 means random image else specific index image provide by user
