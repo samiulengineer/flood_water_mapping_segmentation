@@ -200,24 +200,24 @@ def save_for_comparison(config):
 
     # image index in dataset for compare
     #indices = [14, 35, 45] # best
-    indices = [15, 43, 36] # worst
+    indices = [15, 43, 31] # worst 36 31 27
 
     # initialize dict to save predictions
     plot_tensors = {}
     for idx in indices:
         plot_tensors[idx] = {"regular":[],
                     "cls":[],
-                    "patchify":[],
-                    "p_woc":[]}
+                    "p_woc":[],
+                    "patchify":[]}
 
     # y labels
-    cols = ["vv", "vh", "dem", "GR", "unet", "u2net", "dncnn", "attunet","fpn","linknet","unet++","vnet", "mnet"]
+    cols = ["VV", "VH", "DEM", "GR", "UNET", "U2NET", "DNCNN", "ATTUNET","FPN","LINKNET","UNET++","VNET", "MNET"]
 
     # categories models path based on experiments
     cat_paths = {0:{"regular":[],
                     "cls":[],},
-                1:{"patchify":[],
-                    "p_woc":[]}}
+                1:{"p_woc":[],
+                    "patchify":[]}}
     for path in models_paths:
         c1 = path.split("_")[6]
         c2 = path.split("_")[7]
@@ -339,7 +339,14 @@ def save_for_comparison(config):
                     
                     # set up title
                     if j == 0:
-                        ax[j][i].set_title(k, fontsize=10)
+                        if k=="regular":
+                            ax[j][i].set_title("CFR", fontsize=10, fontweight="bold")
+                        elif k=="cls":
+                            ax[j][i].set_title("CFR-CB", fontsize=10, fontweight="bold")
+                        elif k=="patchify":
+                            ax[j][i].set_title("PHR-CB", fontsize=10, fontweight="bold")
+                        else:
+                            ax[j][i].set_title("PHR", fontsize=10, fontweight="bold")
                     
                     # remove ticks label and axis from figure
                     ax[j][i].xaxis.set_major_locator(plt.NullLocator())
@@ -374,11 +381,11 @@ def save_for_comparison(config):
 
     # set up row-wise y label
     for i in range(len(ax)):
-        ax[i][0].set_ylabel(cols[i], fontsize=10, rotation=0)
+        ax[i][0].set_ylabel(cols[i], fontsize=10, rotation=0, fontweight="bold")
         ax[i][0].yaxis.set_label_coords(-0.5, 0.4)
 
     # save and show plotting figure
-    plt.savefig((config['visualization_dir']+"worst.png"), bbox_inches='tight', dpi=1200)
+    plt.savefig((config['visualization_dir']+"worst4.png"), bbox_inches='tight', dpi=1200)
     plt.show()
     
 
@@ -468,30 +475,30 @@ if __name__=='__main__':
 
     # check class balance for patchify pass True and p_train_dir
     # check class balance for original pass False and train_dir
-    class_balance_check(True, config["p_train_dir"])
+    # class_balance_check(True, config["p_train_dir"])
 
 
-    train_dir = pd.read_csv(config['train_dir'])
-    print("Train examples: ", len(train_dir))
-    print(class_distribution(train_dir))
+    # train_dir = pd.read_csv(config['train_dir'])
+    # print("Train examples: ", len(train_dir))
+    # print(class_distribution(train_dir))
 
-    test_dir = pd.read_csv(config['test_dir'])
-    print("Test examples: ", len(test_dir))
-    print(class_distribution(test_dir))
+    # test_dir = pd.read_csv(config['test_dir'])
+    # print("Test examples: ", len(test_dir))
+    # print(class_distribution(test_dir))
 
-    valid_dir = pd.read_csv(config['valid_dir'])
-    print("Valid examples: ", len(valid_dir))
-    print(class_distribution(valid_dir))
+    # valid_dir = pd.read_csv(config['valid_dir'])
+    # print("Valid examples: ", len(valid_dir))
+    # print(class_distribution(valid_dir))
     
-    print("Saving figures....")
-    display_all(train_dir)
-    display_all(valid_dir)
-    display_all(test_dir)
+    # print("Saving figures....")
+    # display_all(train_dir)
+    # display_all(valid_dir)
+    # display_all(test_dir)
     
-    print("Saving color composite figures....")    
-    display_color_composite(train_dir)
-    display_color_composite(valid_dir)
-    display_color_composite(test_dir)
+    # print("Saving color composite figures....")    
+    # display_color_composite(train_dir)
+    # display_color_composite(valid_dir)
+    # display_color_composite(test_dir)
     
     print("Saving comparison figure....")
     save_for_comparison(config)
