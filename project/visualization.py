@@ -200,7 +200,7 @@ def save_for_comparison(config):
 
     # image index in dataset for compare
     #indices = [14, 35, 45] # best
-    indices = [15, 43, 31] # worst 36 31 27
+    indices = [15, 43, 27] # worst 36 31 27
 
     # initialize dict to save predictions
     plot_tensors = {}
@@ -211,7 +211,7 @@ def save_for_comparison(config):
                     "patchify":[]}
 
     # y labels
-    cols = ["VV", "VH", "DEM", "GR", "UNET", "U2NET", "DNCNN", "ATTUNET","FPN","LINKNET","UNET++","VNET", "MNET"]
+    cols = ["VV", "VH", "DEM", "GR", "UNET", "U2NET", "DNCNN", "ATTUNET","FPN","LINKNET","UNET++","VNET", "FAPNET"]
 
     # categories models path based on experiments
     cat_paths = {0:{"regular":[],
@@ -385,7 +385,7 @@ def save_for_comparison(config):
         ax[i][0].yaxis.set_label_coords(-0.5, 0.4)
 
     # save and show plotting figure
-    plt.savefig((config['visualization_dir']+"worst4.png"), bbox_inches='tight', dpi=1200)
+    plt.savefig((config['visualization_dir']+"worst4.png"), bbox_inches='tight', dpi=1200, transparent=True)
     plt.show()
     
 
