@@ -124,7 +124,8 @@ python train.py --root_dir YOUR_ROOT_DIR \
     --experiment patchify_WOC \
     --patchify True \
     --patch_size 256 \
-    --weights False \
+    --weights False \ 
+```
 
 * **Patchify (PHR-CB)**: In this experiment we take a threshold value (19%) of water class and remove the patch images for each chip that are less than threshold value.
 

@@ -475,30 +475,30 @@ if __name__=='__main__':
 
     # check class balance for patchify pass True and p_train_dir
     # check class balance for original pass False and train_dir
-    # class_balance_check(True, config["p_train_dir"])
+    class_balance_check(True, config["p_train_dir"])
 
 
-    # train_dir = pd.read_csv(config['train_dir'])
-    # print("Train examples: ", len(train_dir))
-    # print(class_distribution(train_dir))
+    train_dir = pd.read_csv(config['train_dir'])
+    print("Train examples: ", len(train_dir))
+    print(class_distribution(train_dir))
 
-    # test_dir = pd.read_csv(config['test_dir'])
-    # print("Test examples: ", len(test_dir))
-    # print(class_distribution(test_dir))
+    test_dir = pd.read_csv(config['test_dir'])
+    print("Test examples: ", len(test_dir))
+    print(class_distribution(test_dir))
 
-    # valid_dir = pd.read_csv(config['valid_dir'])
-    # print("Valid examples: ", len(valid_dir))
-    # print(class_distribution(valid_dir))
+    valid_dir = pd.read_csv(config['valid_dir'])
+    print("Valid examples: ", len(valid_dir))
+    print(class_distribution(valid_dir))
     
-    # print("Saving figures....")
-    # display_all(train_dir)
-    # display_all(valid_dir)
-    # display_all(test_dir)
+    print("Saving figures....")
+    display_all(train_dir)
+    display_all(valid_dir)
+    display_all(test_dir)
     
-    # print("Saving color composite figures....")    
-    # display_color_composite(train_dir)
-    # display_color_composite(valid_dir)
-    # display_color_composite(test_dir)
+    print("Saving color composite figures....")    
+    display_color_composite(train_dir)
+    display_color_composite(valid_dir)
+    display_color_composite(test_dir)
     
     print("Saving comparison figure....")
     save_for_comparison(config)
