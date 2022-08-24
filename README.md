@@ -143,8 +143,6 @@ python train.py --root_dir YOUR_ROOT_DIR \
     --patch_class_balance True
 ```
 
-```
-
 ## Testing
 
 Run following model for evaluating train model on test dataset.
