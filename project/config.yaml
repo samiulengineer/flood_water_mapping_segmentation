@@ -6,7 +6,7 @@ num_classes : 2
 # Training
 # ----------------------------------------------------------------------------------------------
 # mnet = fapnet, unet, fapnet, ex_mnet, dncnn, u2net, vnet, unet++, sm_unet, sm_linknet, sm_fpn, sm_pspnet, kuc_vnet, kuc_unet3pp, kuc_r2unet, kuc_unetpp, kuc_restunet, kuc_tensnet, kuc_swinnet, kuc_u2net, kuc_attunet, ad_unet, transformer
-model_name : mnet
+model_name : unet
 batch_size : 6
 epochs : 2000
 learning_rate : !!float 3e-4

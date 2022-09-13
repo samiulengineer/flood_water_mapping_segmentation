@@ -14,6 +14,14 @@ os.environ["CUDA_VISIBLE_DEVICES"]= "3"
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 def loss():
+    '''
+    Summary:
+        This functions get the total loss calculating using dice loss and focal loss
+    Arguments:
+        None
+    Return:
+        Total loss (segmentation_models.base.objects.SumOfLosses object)
+    '''
     weights = [0.1666, 0.1666, 0.1666, 0.1666, 0.1666, 0.1666]
     dice_loss = sm.losses.DiceLoss(class_weights=weights)
     focal_loss = sm.losses.CategoricalFocalLoss()
@@ -40,7 +48,16 @@ def focal_loss(alpha=0.25, gamma=2):
     return loss
 
 def bce_jaccard_loss(y_true, y_pred, smooth=1):
-
+    '''
+    Summary:
+        This functions get Jaccard loss commonly referred to as the intersection-over-union loss
+    Arguments:
+        y_true (float32): numpy.ndarray of true label
+        y_pred (float32): numpy.ndarray of predicted label
+        smooth (int): smoothness
+    Return:
+        IOU loss or Jaccard loss
+    '''
     intersection = K.sum(K.abs(y_true * y_pred), axis=-1)
     sum_ = K.sum(K.abs(y_true) + K.abs(y_pred), axis=-1)
     jac = (intersection + smooth) / (sum_ - intersection + smooth)

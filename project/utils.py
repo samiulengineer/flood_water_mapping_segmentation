@@ -61,6 +61,7 @@ class SelectCallbacks(keras.callbacks.Callback):
             save predict mask
         """
         if (epoch % self.config['val_plot_epoch'] == 0): # every after certain epochs the model will predict mask
+            # save image/images with their mask, pred_mask and accuracy
             show_predictions(self.val_dataset, self.model, self.config, True)
 
     def get_callbacks(self, val_dataset, model):
@@ -73,22 +74,22 @@ class SelectCallbacks(keras.callbacks.Callback):
         Return:
             list of callbacks
         """
-        if self.config['csv']:
+        if self.config['csv']:  # save all type of accuracy in a csv file for each epoch
             self.callbacks.append(keras.callbacks.CSVLogger(os.path.join(self.config['csv_log_dir'], self.config['csv_log_name']), separator = ",", append = False))
         
-        if self.config['checkpoint']:
+        if self.config['checkpoint']:   # save the best model
             self.callbacks.append(keras.callbacks.ModelCheckpoint(os.path.join(self.config['checkpoint_dir'], self.config['checkpoint_name']), save_best_only = True))
         
-        if self.config['tensorboard']:
+        if self.config['tensorboard']:  # Enable visualizations for TensorBoard
             self.callbacks.append(keras.callbacks.TensorBoard(log_dir = os.path.join(self.config['tensorboard_log_dir'], self.config['tensorboard_log_name'])))
         
-        if self.config['lr']:
+        if self.config['lr']:   # adding learning rate scheduler
             self.callbacks.append(keras.callbacks.LearningRateScheduler(schedule = self.lr_scheduler))
         
-        if self.config['early_stop']:
+        if self.config['early_stop']:   # early stop the training if there is no change in loss
             self.callbacks.append(keras.callbacks.EarlyStopping(monitor = 'my_mean_iou', patience = self.config['patience']))
         
-        if self.config['val_pred_plot']:
+        if self.config['val_pred_plot']:    # plot validated image for each epoch
             self.callbacks.append(SelectCallbacks(val_dataset, model, self.config))
         
         return self.callbacks
@@ -125,12 +126,13 @@ def display(display_list, idx, directory, score, exp):
     Return:
         save images figure into directory
     """
-    plt.figure(figsize=(12, 8))
-    title = list(display_list.keys())
+    plt.figure(figsize=(12, 8)) # set the figure size
+    title = list(display_list.keys())   # get tittle
 
+    # plot all the image in a subplot
     for i in range(len(display_list)):
         plt.subplot(1, len(display_list), i+1)
-        if title[i]=="DEM":
+        if title[i]=="DEM": # for plot nasadem image channel
             ax = plt.gca()
             hillshade = es.hillshade(display_list[title[i]], azimuth=180)
             ep.plot_bands(
@@ -141,17 +143,17 @@ def display(display_list, idx, directory, score, exp):
                 ax=ax
             )
             ax.imshow(hillshade, cmap="Greys", alpha=0.5)
-        elif title[i]=="VV" or title[i]=="VH":
+        elif title[i]=="VV" or title[i]=="VH":  # for plot VV or VH image channel
             plt.title(title[i])
             plt.imshow((display_list[title[i]]), cmap="gray")
             plt.axis('off')
-        else:
+        else:   # for plot the rest of the image channel
             plt.title(title[i])
             plt.imshow((display_list[title[i]]))
             plt.axis('off')
 
     prediction_name = "img_ex_{}_{}_MeanIOU_{:.4f}.png".format(exp, idx, score) # create file name to save
-    plt.savefig(os.path.join(directory, prediction_name), bbox_inches='tight')
+    plt.savefig(os.path.join(directory, prediction_name), bbox_inches='tight')  # save all the figures
     plt.clf()
     plt.cla()
     plt.close()
@@ -171,7 +173,7 @@ def show_predictions(dataset, model, config, val=False):
     Output:
         save predicted image/images
     """
-
+    # get the directory for validation or test
     if val:
         directory = config['prediction_val_dir']
     else:
@@ -205,15 +207,16 @@ def show_predictions(dataset, model, config, val=False):
 def patch_show_predictions(dataset, model, config):
     # predict patch images and merge together 
     
-    with open(config['p_test_dir'], 'r') as j:
+    with open(config['p_test_dir'], 'r') as j:  # opening the json file
         patch_test_dir = json.loads(j.read())
     
-    df = pd.DataFrame.from_dict(patch_test_dir)
-    test_dir = pd.read_csv(config['test_dir'])
+    df = pd.DataFrame.from_dict(patch_test_dir) # read as paadas dataframe
+    test_dir = pd.read_csv(config['test_dir'])  # get the csv file
     total_score = 0.0
     
     # loop to traverse full dataset
     for i in range(len(test_dir)):
+        # for same mask directory get the index
         idx = df[df["masks"]==test_dir["masks"][i]].index
         
         # construct a single full image from prediction patch images
@@ -406,6 +409,7 @@ def plot_3d():
     paths = glob.glob("/home/mdsamiul/github_project/flood_water_mapping_segmentation/csv_logger/ad_unet/*.csv")
     
     # smooth plotting values
+    # Weight between 0 and 1
     def my_tb_smooth(scalars: list[float], weight: float) -> list[float]:  # Weight between 0 and 1
         """
 
