@@ -82,7 +82,7 @@ When you run the following code based on different experiments, some new directo
 3. model (save model checkpoint)
 4. prediction (validation and test prediction png format)
 
-* **Regular (CFR)**: This experiment utilize the dataset as it is.
+* **Comprehensive Full Resolution (CFR)**: This experiment utilize the dataset as it is.
 
 ```
 python train.py --root_dir YOUR_ROOT_DIR \
@@ -91,13 +91,13 @@ python train.py --root_dir YOUR_ROOT_DIR \
     --epochs 10 \
     --batch_size 3 \
     --index -1 \
-    --experiment regular \
+    --experiment cfr \
     --patchify False \
     --patch_size 512 \
     --weights False \
 ```
 
-* **Class Balance (CFR-CB)**: We balance the dataset biasness towards non-water class in this experiment. 
+* **Comprehensive Full Resolution with Class Balance (CFR-CB)**: We balance the dataset biasness towards non-water class in this experiment. 
 
 ```
 python train.py --root_dir YOUR_ROOT_DIR \
@@ -106,13 +106,13 @@ python train.py --root_dir YOUR_ROOT_DIR \
     --epochs 10 \
     --batch_size 3 \
     --index -1 \
-    --experiment cls_balance \
+    --experiment cfr_cb \
     --patchify False \
     --patch_size 512 \
     --weights True \
 ```
 
-* **Patchify Without class Balance (PHR)**: In this experiment we take all the patch images for each chip.
+* **Patchify Half Resolution (PHR)**: In this experiment we take all the patch images for each chip.
 
 ```
 python train.py --root_dir YOUR_ROOT_DIR \
@@ -121,13 +121,13 @@ python train.py --root_dir YOUR_ROOT_DIR \
     --epochs 10 \
     --batch_size 3 \
     --index -1 \
-    --experiment patchify_WOC \
+    --experiment phr \
     --patchify True \
     --patch_size 256 \
     --weights False \ 
 ```
 
-* **Patchify (PHR-CB)**: In this experiment we take a threshold value (19%) of water class and remove the patch images for each chip that are less than threshold value.
+* **Patchify Half Resolution with Class Balance (PHR-CB)**: In this experiment we take a threshold value (19%) of water class and remove the patch images for each chip that are less than threshold value.
 
 ```
 python train.py --root_dir YOUR_ROOT_DIR \
@@ -136,7 +136,7 @@ python train.py --root_dir YOUR_ROOT_DIR \
     --epochs 10 \
     --batch_size 3 \
     --index -1 \
-    --experiment patchify \
+    --experiment phr_cb \
     --patchify True \
     --patch_size 256 \
     --weights False \
@@ -145,17 +145,34 @@ python train.py --root_dir YOUR_ROOT_DIR \
 
 ## Testing
 
+* **CFR and CFR-CB Experiment
+
 Run following model for evaluating train model on test dataset.
+
 ```
-python train.py --gpu "0" \
+python test.py \
+    --dataset_dir YOUR_ROOT_DIR/data/ \
+    --model_name unet \
+    --load_model_name MODEL_CHECKPOINT_NAME \
+    --plot_single False \
+    --index -1 \
+    --patchify False \
+    --patch_size 256 \
+    --experiment cfr \
+```
+
+* **PHR and PHR-CB Experiment
+
+```
+python train.py \
     --dataset_dir YOUR_ROOT_DIR/data/ \
     --model_name unet \
     --load_model_name my_model.hdf5 \
     --plot_single False \
     --index -1 \
-    --patchify False \
-    --patch_size 512 \
-    --experiment regular \
+    --patchify True \
+    --patch_size 256 \
+    --experiment phr \
 ```
 
 ## Result

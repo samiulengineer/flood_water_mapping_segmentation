@@ -1,9 +1,9 @@
 import os
-import argparse
 import time
+import argparse
 from loss import *
-from model import get_model, get_model_transfer_lr
 from metrics import get_metrics
+from model import get_model, get_model_transfer_lr
 from tensorflow import keras
 from utils import set_gpu, SelectCallbacks, get_config_yaml, create_paths
 from dataset import get_train_val_dataloader
@@ -16,8 +16,8 @@ tf.config.optimizer.set_jit("True")
 
 # Parsing variable ctrl + /
 # ----------------------------------------------------------------------------------------------
-
 parser = argparse.ArgumentParser()
+
 parser.add_argument("--root_dir")
 parser.add_argument("--dataset_dir")
 parser.add_argument("--model_name")
