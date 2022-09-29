@@ -145,7 +145,7 @@ python train.py --root_dir YOUR_ROOT_DIR \
 
 ## Testing
 
-* **CFR and CFR-CB Experiment
+* **CFR and CFR-CB Experiment**
 
 Run following model for evaluating train model on test dataset.
 
@@ -157,11 +157,11 @@ python test.py \
     --plot_single False \
     --index -1 \
     --patchify False \
-    --patch_size 256 \
+    --patch_size 512 \
     --experiment cfr \
 ```
 
-* **PHR and PHR-CB Experiment
+* **PHR and PHR-CB Experiment**
 
 ```
 python train.py \
