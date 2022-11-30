@@ -37,7 +37,7 @@ class SelectCallbacks(keras.callbacks.Callback):
         self.config = config
         self.callbacks = []
 
-    def lr_scheduler(self, epoch):
+    def lr_scheduler(self, epoch):     
         """
         Summary:
             learning rate decrease according to the model performance
@@ -150,7 +150,7 @@ def display(display_list, idx, directory, score, exp):
             plt.imshow((display_list[title[i]]))
             plt.axis('off')
 
-    prediction_name = "img_ex_{}_{}_MeanIOU_{:.4f}.png".format(exp, idx, score) # create file name to save
+    prediction_name = "{}_{}_mio_{:.4f}.png".format(exp, idx, score) # create file name to save
     plt.savefig(os.path.join(directory, prediction_name), bbox_inches='tight')
     plt.clf()
     plt.cla()
@@ -326,13 +326,13 @@ def get_config_yaml(path, args):
     config['p_test_dir'] = config['dataset_dir']+config['p_test_dir']
     
     # Create Callbacks paths
-    config['tensorboard_log_name'] = "{}_ex_{}_epochs_{}_{}".format(config['model_name'],config['experiment'],config['epochs'],datetime.now().strftime("%d-%b-%y"))
+    config['tensorboard_log_name'] = "{}_{}_ep_{}_{}".format(config['model_name'],config['experiment'],config['epochs'],datetime.now().strftime("%d-%b-%y"))
     config['tensorboard_log_dir'] = config['root_dir']+'/logs/'+config['model_name']+'/'
 
-    config['csv_log_name'] = "{}_ex_{}_epochs_{}_{}.csv".format(config['model_name'],config['experiment'],config['epochs'],datetime.now().strftime("%d-%b-%y"))
+    config['csv_log_name'] = "{}_{}_ep_{}_{}.csv".format(config['model_name'],config['experiment'],config['epochs'],datetime.now().strftime("%d-%b-%y"))
     config['csv_log_dir'] = config['root_dir']+'/csv_logger/'+config['model_name']+'/'
 
-    config['checkpoint_name'] = "{}_ex_{}_epochs_{}_{}.hdf5".format(config['model_name'],config['experiment'],config['epochs'],datetime.now().strftime("%d-%b-%y"))
+    config['checkpoint_name'] = "{}_{}_ep_{}_{}.hdf5".format(config['model_name'],config['experiment'],config['epochs'],datetime.now().strftime("%d-%b-%y"))
     config['checkpoint_dir'] = config['root_dir']+'/model/'+config['model_name']+'/'
 
     # Create save model directory

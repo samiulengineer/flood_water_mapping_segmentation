@@ -1,6 +1,5 @@
       # Map Floodwater from Radar Imagery
 
-
 ```Tensorflow.keras``` Implementation
 
 ## Introduction
@@ -20,7 +19,6 @@ Some examples from dataset.
 ![Alternate text](/readme/img_id_ayt01.png)
 ![Alternate text](/readme/img_id_jja60.png)
 ![Alternate text](/readme/img_id_kuo02.png)
-
 
 ## Models
 
@@ -53,11 +51,19 @@ In this repository we implement UNET, U2NET, UNET++, VNET, DNCNN, and MOD-UNET u
 ## Setup
 
 First clone the github repo in your local or server machine by following:
+
 ```
 git clone https://github.com/samiulengineer/flood_water_mapping_segmentation.git
 ```
 
-Create a new environment and install dependency from `requirement.txt` file. Before start training check the variable inside config.yaml i.e. `height`, `in_channels`. Keep the above mention dataset in the data folder that give you following structure:
+Use Pip to create a new environment and install dependency from `requirement.txt` file. The following command will install the packages according to the configuration file `requirement.txt`.
+
+```
+pip install -r requirements.txt
+```
+
+
+Before start training check the variable inside config.yaml i.e. `height`, `in_channels`. Keep the above mention dataset in the data folder that give you following structure:
 
 ```
 --data
@@ -74,9 +80,10 @@ Create a new environment and install dependency from `requirement.txt` file. Bef
 
 ## Experiments
 
-After setup the required folders and package run one of the following experiment. There are four experiments based on combination of parameters passing through `argparse` and `config.yaml`. Combination of each experiments given below. 
+After setup the required folders and package run one of the following experiment. There are four experiments based on combination of parameters passing through `argparse` and `config.yaml`. Combination of each experiments given below.
 
 When you run the following code based on different experiments, some new directories will be created;
+
 1. csv_logger (save all evaluation result in csv format)
 2. logs (tensorboard logger)
 3. model (save model checkpoint)
@@ -97,7 +104,7 @@ python train.py --root_dir YOUR_ROOT_DIR \
     --weights False \
 ```
 
-* **Comprehensive Full Resolution with Class Balance (CFR-CB)**: We balance the dataset biasness towards non-water class in this experiment. 
+* **Comprehensive Full Resolution with Class Balance (CFR-CB)**: We balance the dataset biasness towards non-water class in this experiment.
 
 ```
 python train.py --root_dir YOUR_ROOT_DIR \
@@ -164,7 +171,7 @@ python test.py \
 * **PHR and PHR-CB Experiment**
 
 ```
-python train.py \
+python test.py \
     --dataset_dir YOUR_ROOT_DIR/data/ \
     --model_name unet \
     --load_model_name my_model.hdf5 \

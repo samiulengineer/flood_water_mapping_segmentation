@@ -67,12 +67,17 @@ def read_img(directory, in_channels=None, label=False, patch_idx=None, height=51
     else:
         X = np.zeros((height,width, in_channels)) # get a numpy array of image size
         
+        #to run a single input channel change the value of i according to label_norm dictornay
         for i in range(in_channels):    # read N number of channels
             tmp_ext = label_norm[i][0]  # get the name of channel (label_norm is dictonary containing {channel name, norm_val_1, norm_val_2})
             with rasterio.open((directory+tmp_ext)) as f:   # opening the image from the directory with channel name
                 fea = f.read(1)
             
+            # to run a single input channel put X[:, :, 0]  Also change the show_prediction and patch_show_prediction in utils.py
             X[:,:,i] = (fea - label_norm[i][1]) / label_norm[i][2]  # normalizing the data
+        
+            
+        
             
         if patch_idx:   # if patch is true then returning the extracted patch from image else returning the whole image
             return X[patch_idx[0]:patch_idx[1], patch_idx[2]:patch_idx[3],:] # extract patch from original image

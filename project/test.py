@@ -27,7 +27,7 @@ else:
 
 # Set up test configaration
 # ----------------------------------------------------------------------------------------------
-config = get_config_yaml('config.yaml', {})
+config = get_config_yaml('config.yaml', vars(args))
 create_paths(config, True)
 
 # Multiple GPU Setup
