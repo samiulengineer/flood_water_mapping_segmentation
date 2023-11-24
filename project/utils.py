@@ -139,7 +139,7 @@ def display(display_list, idx, directory, score, exp):
                 cmap="terrain",
                 title=title[i],
                 ax=ax
-            )
+            ) 
             ax.imshow(hillshade, cmap="Greys", alpha=0.5)
         elif title[i]=="VV" or title[i]=="VH":
             plt.title(title[i])

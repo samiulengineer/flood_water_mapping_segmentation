@@ -34,9 +34,9 @@ p_test_dir : json/test_patch_256.json
 # Dataset
 # ----------------------------------------------------------------------------------------------
 weights : False # False if cfr, True if cfr_cb
-balance_weights : [1.4, 8.6] # cfr_cb experiment
-dataset_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation/data/
-root_dir : /home/mdsamiul/github_project/flood_water_mapping_segmentation
+balance_weights : [1.4, 8.6] # cfr_cb experiment /mnt/hdd2/mdsamiul/archive/flood_water_mapping_segmentation/data
+dataset_dir : /mnt/hdd2/mdsamiul/archive/flood_water_mapping_segmentation/data
+root_dir : /mnt/hdd2/mdsamiul/archive/flood_water_mapping_segmentation
 train_size : 0.8
 train_dir : train.csv
 valid_dir : valid.csv

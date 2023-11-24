@@ -107,7 +107,7 @@ def get_metrics(config):
     m = MyMeanIOU(config['num_classes'])
     return {
             'my_mean_iou': m,
-            'f1_score':sm.metrics.f1_score,
+            'f1-score':sm.metrics.f1_score,
             'precision':sm.metrics.precision,
             'recall':sm.metrics.recall,
             'dice_coef_score':dice_coef_score

@@ -214,7 +214,7 @@ def save_patch_idx(path, patch_size=256, stride=8, test=None, patch_class_balanc
                     tmp = img[s_row:e_row, start:end]   # slicing the image
                     percen = class_percentage_check(tmp) # get class percentage
                     
-                    if patch_class_balance or test=='test': # for without patch_class_balance or test take all patch images
+                    if not patch_class_balance or test=='test': # for without patch_class_balance or test take all patch images
                         patch_idx.append([s_row, e_row, start, end])
                         
                     else:   # for patch_class_balance take patch image indices based on class percentage
