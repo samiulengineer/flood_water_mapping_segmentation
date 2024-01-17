@@ -9,6 +9,7 @@ from utils import show_predictions, get_config_yaml, create_paths, patch_show_pr
 
 # Parsing variable
 # ----------------------------------------------------------------------------------------------
+# test
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_dir")
 parser.add_argument("--model_name")
